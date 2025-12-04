@@ -9,10 +9,19 @@ public class GameNetworkManager : MonoBehaviour
     [Header("Assign player prefab here (optional - will also register to NetworkManager)")]
     [SerializeField] private GameObject playerPrefab;
 
-    private Dictionary<ulong, string> connectedAccounts = new Dictionary<ulong, string>();
+    private readonly Dictionary<ulong, string> connectedAccounts = new();
+    private readonly Dictionary<ulong, NetworkObject> _playerObjects = new();
+
+    public static GameNetworkManager Instance { get; private set; }
 
     private void Awake()
     {
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+        Instance = this;
         DontDestroyOnLoad(gameObject);
     }
 
@@ -27,6 +36,22 @@ public class GameNetworkManager : MonoBehaviour
         NetworkManager.Singleton.ConnectionApprovalCallback = ConnectionApprovalCallback;
         NetworkManager.Singleton.OnClientConnectedCallback += OnClientConnected;
         NetworkManager.Singleton.OnClientDisconnectCallback += OnClientDisconnected;
+    }
+    
+    public void AddPlayerToList(ulong clientId, NetworkObject networkObject)
+    {
+        if (NetworkManager.Singleton.IsServer)
+        {
+            _playerObjects[clientId] = networkObject;
+        }
+    }
+
+    public void RemovePlayerFromList(ulong clientId)
+    {
+        if (NetworkManager.Singleton.IsServer && _playerObjects.ContainsKey(clientId))
+        {
+            _playerObjects.Remove(clientId);
+        }
     }
 
     private void ConnectionApprovalCallback(NetworkManager.ConnectionApprovalRequest request, NetworkManager.ConnectionApprovalResponse response)
@@ -80,42 +105,34 @@ public class GameNetworkManager : MonoBehaviour
     private void OnClientDisconnected(ulong clientId)
     {
         Debug.Log($"[GNM] Client disconnected: {clientId}");
-
-        if (!connectedAccounts.TryGetValue(clientId, out string uid))
-        {
-            Debug.LogWarning($"[GNM] No uid mapping for client {clientId}");
-            return;
-        }
-
+        
         if (!NetworkManager.Singleton.IsServer)
         {
-            Debug.LogWarning("[GNM] OnClientDisconnected should be executed on server.");
             connectedAccounts.Remove(clientId);
             return;
         }
-
-        // 서버에서 플레이어 NetworkObject 가져오기
-        NetworkObject playerNetworkObject = NetworkManager.Singleton.SpawnManager.GetPlayerNetworkObject(clientId);
-
-        if (playerNetworkObject != null)
+        
+        if (_playerObjects.TryGetValue(clientId, out NetworkObject playerNetworkObject) && playerNetworkObject != null)
         {
-            Vector3 pos = playerNetworkObject.transform.position;
+            if (connectedAccounts.TryGetValue(clientId, out string uid))
+            {
+                Vector3 pos = playerNetworkObject.transform.position;
 
-            // 데이터 저장
-            PlayerSaveData dataToSave = new PlayerSaveData(uid, pos);
-            PlayerDataService.Instance.Save(dataToSave);
-            Debug.Log($"[GNM] Saved data for uid {uid} on disconnect.");
-
-            // NetworkObject despawn
-            playerNetworkObject.Despawn(true); // true면 서버에서 강제 despawn
-            Debug.Log($"[GNM] Player NetworkObject for client {clientId} despawned.");
+                PlayerSaveData dataToSave = new PlayerSaveData(uid, pos);
+                PlayerDataService.Instance.Save(dataToSave);
+                Debug.Log($"[GNM] Saved data for uid {uid} on disconnect.");
+            }
+            else
+            {
+                Debug.LogWarning($"[GNM] No uid mapping for client {clientId} when saving data.");
+            }
         }
         else
         {
-            Debug.LogWarning($"[GNM] Player NetworkObject not found for client {clientId}");
+            Debug.LogWarning($"[GNM] Player NetworkObject not found in managed list for client {clientId}. Cannot save data.");
         }
-
-        // 클라이언트-UID 매핑 제거
+        
+        _playerObjects.Remove(clientId);
         connectedAccounts.Remove(clientId);
     }
 

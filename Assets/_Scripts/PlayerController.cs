@@ -2,38 +2,36 @@ using UnityEngine;
 using Unity.Netcode;
 using UnityEngine.AI;
 using UnityEngine.InputSystem;
+using UnityEngine.PlayerLoop;
 
 [RequireComponent(typeof(NavMeshAgent))]
 public class PlayerController : NetworkBehaviour 
 { 
     private NavMeshAgent agent; 
-    private readonly NetworkVariable<Vector3> _networkDestination = new(writePerm: NetworkVariableWritePermission.Server); 
+    private readonly NetworkVariable<Vector3> _networkDestination = new(writePerm: NetworkVariableWritePermission.Server);
 
-    void Start()
+    void Awake()
     {
         agent = GetComponent<NavMeshAgent>();
+        agent.enabled = false;
     } 
 
-    public override void OnNetworkSpawn() 
-    { 
-        base.OnNetworkSpawn(); 
- 
-        if (IsOwner) 
-        { 
-            var cam = Camera.main;
-            if (cam != null)
+    public override void OnNetworkSpawn()
+    {
+        base.OnNetworkSpawn();
+        
+        agent.enabled = true;
+        
+        if (IsServer)
+        {
+            if (GameNetworkManager.Instance != null)
             {
-                var follow = cam.GetComponent<FollowCamera>();
-                if (follow != null) follow.SetTarget(transform);
+                GameNetworkManager.Instance.AddPlayerToList(OwnerClientId, NetworkObject);
             }
-        } 
-
-        if (IsServer) 
-        { 
-            _networkDestination.Value = transform.position; 
-        } 
-    } 
-
+            _networkDestination.Value = transform.position;
+        }
+    }
+    
     void Update() 
     { 
         if (IsOwner)
@@ -52,9 +50,8 @@ public class PlayerController : NetworkBehaviour
                 }
             }
         }
-
-        // 서버에서 이동 처리
-        if (IsServer && agent is not null)
+        
+        if (IsServer && agent != null && agent.enabled)
         {
             HandleServerMovement();
         }
@@ -62,16 +59,19 @@ public class PlayerController : NetworkBehaviour
 
     private void HandleServerMovement() 
     { 
-        if (agent is null) return;
+        if (agent == null) return;
         
-        if (Vector3.Distance(agent.destination, _networkDestination.Value) > 0.1f)
+        float distance = Vector3.Distance(agent.destination, _networkDestination.Value);
+        if (distance > 0.1f)
         {
+            Debug.Log($"[Server] Moving Agent. Current Dest: {agent.destination}, New Dest: {_networkDestination.Value}, Distance: {distance}");
             agent.SetDestination(_networkDestination.Value); 
         }
     } 
 
     [ServerRpc] void SubmitDestinationServerRpc(Vector3 destination) 
-    { 
+    {
+        Debug.Log($"[ServerRpc] Received new destination on server: {destination}");
         _networkDestination.Value = destination; 
     } 
 }
