@@ -16,6 +16,7 @@ GameObject:
   - component: {fileID: 1192082349329664433}
   - component: {fileID: 2448617834398086125}
   - component: {fileID: 6278118228954387857}
+  - component: {fileID: -1214518383568250082}
   m_Layer: 6
   m_Name: Player
   m_TagString: Untagged
@@ -223,3 +224,17 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerController
   ShowTopMostFoldoutHeaderGroup: 1
+--- !u!114 &-1214518383568250082
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5624573649355495005}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8899e8a879323544ea0e090f0ae866a5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerServerSave
+  ShowTopMostFoldoutHeaderGroup: 1
+  autoSaveInterval: 10
