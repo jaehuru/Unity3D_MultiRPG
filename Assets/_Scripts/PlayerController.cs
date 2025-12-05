@@ -2,7 +2,6 @@ using UnityEngine;
 using Unity.Netcode;
 using UnityEngine.AI;
 using UnityEngine.InputSystem;
-using UnityEngine.PlayerLoop;
 
 [RequireComponent(typeof(NavMeshAgent))]
 public class PlayerController : NetworkBehaviour 

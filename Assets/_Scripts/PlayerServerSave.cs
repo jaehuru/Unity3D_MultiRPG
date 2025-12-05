@@ -1,5 +1,6 @@
 using UnityEngine;
 using Unity.Netcode;
+using System.Threading.Tasks; // For async/await
 
 [RequireComponent(typeof(NetworkObject))]
 public class PlayerServerSave : NetworkBehaviour
@@ -29,24 +30,43 @@ public class PlayerServerSave : NetworkBehaviour
         }
     }
     
-    private void SavePositionNow()
+    private async void SavePositionNow()
     {
         ulong owner = OwnerClientId;
         
-        var gnm = FindFirstObjectByType<GameNetworkManager>();
-        if (gnm is null) return;
+        if (GameNetworkManager.Instance == null)
+        {
+            Debug.LogWarning("[PlayerServerSave] GameNetworkManager.Instance is null. Cannot autosave.");
+            return;
+        }
 
-        if (gnm.TryGetAccountId(owner, out string uid))
+        if (GameNetworkManager.Instance.TryGetClientInfo(owner, out var clientInfo))
         {
             Vector3 pos = transform.position;
-            PlayerDataService.Instance.UpdateCachePosition(uid, pos);
-            PlayerDataService.Instance.Save(new PlayerSaveData(uid, pos));
-            Debug.Log($"[PlayerServerSave] Autosaved uid:{uid} pos:{pos}");
+            string uid = clientInfo.Uid;
+            string jwtToken = clientInfo.JwtToken;
+
+            if (PlayerServerDataService.Instance == null)
+            {
+                Debug.LogError("[PlayerServerSave] PlayerServerDataService.Instance is null. Cannot autosave.");
+                return;
+            }
+
+            PlayerData dataToSave = new PlayerData(pos);
+            
+            bool saveSuccess = await PlayerServerDataService.Instance.SavePlayerDataAsync(jwtToken, dataToSave);
+            if (saveSuccess)
+            {
+                Debug.Log($"[PlayerServerSave] Autosaved uid:{uid} pos:{pos}");
+            }
+            else
+            {
+                Debug.LogWarning($"[PlayerServerSave] Failed to autosave uid:{uid}.");
+            }
         }
         else
         {
-            Debug.LogWarning("[PlayerServerSave] UID not found for autosave");
+            Debug.LogWarning("[PlayerServerSave] ClientInfo not found for autosave.");
         }
     }
 }
-

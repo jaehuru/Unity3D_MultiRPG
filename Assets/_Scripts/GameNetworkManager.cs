@@ -3,15 +3,22 @@ using Unity.Netcode;
 using System;
 using System.Text;
 using System.Collections.Generic;
+using UnityEngine.SceneManagement;
 
 public class GameNetworkManager : MonoBehaviour
 {
     [Header("Assign player prefab here (optional - will also register to NetworkManager)")]
     [SerializeField] private GameObject playerPrefab;
+    
+    public class ClientInfo 
+    {
+        public string Uid;
+        public string JwtToken;
+        public NetworkObject PlayerNetworkObject;
+    }
 
-    private readonly Dictionary<ulong, string> connectedAccounts = new();
-    private readonly Dictionary<ulong, NetworkObject> _playerObjects = new();
-
+    private readonly Dictionary<ulong, ClientInfo> connectedClientsData = new();
+    
     public static GameNetworkManager Instance { get; private set; }
 
     private void Awake()
@@ -36,65 +43,112 @@ public class GameNetworkManager : MonoBehaviour
         NetworkManager.Singleton.ConnectionApprovalCallback = ConnectionApprovalCallback;
         NetworkManager.Singleton.OnClientConnectedCallback += OnClientConnected;
         NetworkManager.Singleton.OnClientDisconnectCallback += OnClientDisconnected;
+        
+        StartDedicatedServer();
     }
     
     public void AddPlayerToList(ulong clientId, NetworkObject networkObject)
     {
-        if (NetworkManager.Singleton.IsServer)
+        if (NetworkManager.Singleton.IsServer && connectedClientsData.TryGetValue(clientId, out ClientInfo info))
         {
-            _playerObjects[clientId] = networkObject;
+            info.PlayerNetworkObject = networkObject;
+            Debug.Log($"[GNM] Added player NetworkObject for client {clientId} (UID: {info.Uid}).");
         }
     }
 
     public void RemovePlayerFromList(ulong clientId)
     {
-        if (NetworkManager.Singleton.IsServer && _playerObjects.ContainsKey(clientId))
+        if (NetworkManager.Singleton.IsServer && connectedClientsData.ContainsKey(clientId))
         {
-            _playerObjects.Remove(clientId);
+            connectedClientsData.Remove(clientId);
+            Debug.Log($"[GNM] Removed client {clientId} from connectedClientsData.");
         }
     }
 
-    private void ConnectionApprovalCallback(NetworkManager.ConnectionApprovalRequest request, NetworkManager.ConnectionApprovalResponse response)
+    private async void ConnectionApprovalCallback(NetworkManager.ConnectionApprovalRequest request, NetworkManager.ConnectionApprovalResponse response)
     {
-        string uid = "unknown";
+        response.Approved = false;
+        response.CreatePlayerObject = false;
+        response.Pending = true;
+
+        string jwtToken = "";
         try
         {
             if (request.Payload != null && request.Payload.Length > 0)
-                uid = Encoding.UTF8.GetString(request.Payload);
+            {
+                jwtToken = Encoding.UTF8.GetString(request.Payload);
+            }
         }
         catch (Exception ex)
         {
-            Debug.LogWarning($"[Approval] Failed parse payload: {ex}");
-            uid = "unknown";
+            Debug.LogWarning($"[Approval] Failed to parse payload as JWT: {ex}");
+            response.Reason = "Invalid payload format.";
+            response.Pending = false;
+            return;
         }
 
-        Vector3 spawnPos = Vector3.zero;
-
-        if (PlayerDataService.Instance != null)
+        if (string.IsNullOrEmpty(jwtToken))
         {
-            PlayerSaveData pd = PlayerDataService.Instance.Load(uid);
-            if (pd != null)
+            Debug.LogWarning("[Approval] JWT token not provided in payload.");
+            response.Reason = "Authentication token required.";
+            response.Pending = false;
+            return;
+        }
+
+        if (ServerAuthService.Instance == null)
+        {
+            Debug.LogError("[Approval] ServerAuthService.Instance is null. Is it in the scene?");
+            response.Reason = "Server authentication service unavailable.";
+            response.Pending = false;
+            return;
+        }
+
+        AuthValidationResult validationResult = await ServerAuthService.Instance.ValidateTokenAsync(jwtToken);
+        
+        string uid = "unknown";
+        if (validationResult.IsValid)
+        {
+            uid = validationResult.UserId;
+            Debug.Log($"[Approval] Token validated for user: {uid}");
+            
+            // --- Player Data Loading ---
+            if (PlayerServerDataService.Instance == null)
             {
-                spawnPos = pd.GetPosition();
-                Debug.Log($"[Approval] Loaded {uid} at {spawnPos}");
+                Debug.LogError("[Approval] PlayerServerDataService.Instance is null. Is it in the scene?");
+                response.Reason = "Player data service unavailable.";
+                response.Pending = false;
+                return;
+            }
+
+            PlayerData loadedPlayerData = await PlayerServerDataService.Instance.LoadPlayerDataAsync(jwtToken);
+            Vector3 spawnPos = Vector3.zero;
+
+            if (loadedPlayerData != null && loadedPlayerData.position != null)
+            {
+                spawnPos = loadedPlayerData.position.ToVector3();
+                Debug.Log($"[Approval] Loaded player data for {uid} at {spawnPos}");
             }
             else
             {
-                Debug.Log($"[Approval] No saved data for {uid}, spawn default");
+                Debug.Log($"[Approval] No saved player data found or data is invalid for {uid}, spawning at default.");
             }
+            // --- End Player Data Loading ---
+
+            response.Approved = true;
+            response.CreatePlayerObject = true;
+            response.Position = spawnPos;
+            response.Rotation = Quaternion.identity;
+            
+            connectedClientsData[request.ClientNetworkId] = new ClientInfo { Uid = uid, JwtToken = jwtToken };
+            Debug.Log($"[Approval] Client {request.ClientNetworkId} (UID: {uid}) approved.");
         }
         else
         {
-            Debug.LogError("[Approval] PlayerDataService not found in scene!");
+            Debug.LogWarning($"[Approval] JWT token validation failed for client {request.ClientNetworkId}: {validationResult.ErrorMessage}");
+            response.Reason = $"Authentication failed: {validationResult.ErrorMessage}";
         }
-
-        response.Approved = true;
-        response.CreatePlayerObject = true;
-        response.Position = spawnPos;
-        response.Rotation = Quaternion.identity;
-        response.Pending = false;
         
-        connectedAccounts[request.ClientNetworkId] = uid;
+        response.Pending = false;
     }
 
     private void OnClientConnected(ulong clientId)
@@ -102,50 +156,130 @@ public class GameNetworkManager : MonoBehaviour
         Debug.Log($"[GNM] Client connected: {clientId}");
     }
 
-    private void OnClientDisconnected(ulong clientId)
+    private async void OnClientDisconnected(ulong clientId)
     {
         Debug.Log($"[GNM] Client disconnected: {clientId}");
         
         if (!NetworkManager.Singleton.IsServer)
         {
-            connectedAccounts.Remove(clientId);
+            connectedClientsData.Remove(clientId);
             return;
         }
         
-        if (_playerObjects.TryGetValue(clientId, out NetworkObject playerNetworkObject) && playerNetworkObject != null)
+        if (connectedClientsData.TryGetValue(clientId, out ClientInfo clientInfo))
         {
-            if (connectedAccounts.TryGetValue(clientId, out string uid))
+            if (clientInfo.PlayerNetworkObject != null)
             {
-                Vector3 pos = playerNetworkObject.transform.position;
+                Vector3 pos = clientInfo.PlayerNetworkObject.transform.position;
+                string jwtToken = clientInfo.JwtToken;
+                string uid = clientInfo.Uid;
 
-                PlayerSaveData dataToSave = new PlayerSaveData(uid, pos);
-                PlayerDataService.Instance.Save(dataToSave);
-                Debug.Log($"[GNM] Saved data for uid {uid} on disconnect.");
+                // --- Player Data Saving ---
+                if (PlayerServerDataService.Instance == null)
+                {
+                    Debug.LogError($"[GNM] PlayerServerDataService.Instance is null on disconnect for client {clientId}. Cannot save data.");
+                    connectedClientsData.Remove(clientId);
+                    return;
+                }
+                
+                PlayerData dataToSave = new PlayerData(pos);
+                
+                bool saveSuccess = await PlayerServerDataService.Instance.SavePlayerDataAsync(jwtToken, dataToSave);
+                if (saveSuccess)
+                {
+                    Debug.Log($"[GNM] Saved data for uid {uid} on disconnect at {pos}.");
+                }
+                else
+                {
+                    Debug.LogWarning($"[GNM] Failed to save data for uid {uid} on disconnect.");
+                }
+                // --- End Player Data Saving ---
             }
             else
             {
-                Debug.LogWarning($"[GNM] No uid mapping for client {clientId} when saving data.");
+                Debug.LogWarning($"[GNM] Player NetworkObject not found for client {clientId}. Cannot save position.");
             }
+            connectedClientsData.Remove(clientId);
         }
         else
         {
-            Debug.LogWarning($"[GNM] Player NetworkObject not found in managed list for client {clientId}. Cannot save data.");
+            Debug.LogWarning($"[GNM] ClientInfo not found for client {clientId} on disconnect.");
         }
-        
-        _playerObjects.Remove(clientId);
-        connectedAccounts.Remove(clientId);
     }
 
-    public bool TryGetAccountId(ulong clientId, out string uid)
+    public bool TryGetClientInfo(ulong clientId, out ClientInfo clientInfo)
     {
-        return connectedAccounts.TryGetValue(clientId, out uid);
+        clientInfo = null; // Initialize out parameter
+        return connectedClientsData.TryGetValue(clientId, out clientInfo);
     }
-
-    private void OnApplicationQuit()
+    
+    public void StartHost()
     {
-        if (PlayerDataService.Instance != null)
+        if (NetworkManager.Singleton == null)
         {
-            PlayerDataService.Instance.FlushAllToDisk();
+            Debug.LogError("[GNM] NetworkManager.Singleton is null. Cannot start host.");
+            return;
         }
+        if (NetworkManager.Singleton.StartHost())
+        {
+            Debug.Log("[GNM] Host started successfully.");
+        }
+        else
+        {
+            Debug.LogError("[GNM] Failed to start host.");
+        }
+    }
+
+    public void StartClient()
+    {
+        if (NetworkManager.Singleton == null)
+        {
+            Debug.LogError("[GNM] NetworkManager.Singleton is null. Cannot start client.");
+            return;
+        }
+        if (NetworkManager.Singleton.StartClient())
+        {
+            Debug.Log("[GNM] Client started successfully.");
+        }
+        else
+        {
+            Debug.LogError("[GNM] Failed to start client.");
+        }
+    }
+
+    public void StartServer()
+    {
+        if (NetworkManager.Singleton == null)
+        {
+            Debug.LogError("[GNM] NetworkManager.Singleton is null. Cannot start server.");
+            return;
+        }
+        if (NetworkManager.Singleton.StartServer())
+        {
+            Debug.Log("[GNM] Server started successfully.");
+        }
+        else
+        {
+            Debug.LogError("[GNM] Failed to start server.");
+        }
+    }
+    
+    public void StartDedicatedServer()
+    {
+#if UNITY_SERVER
+        if (!Application.isEditor)
+        {
+            Debug.Log("--- DEDICATED SERVER STARTING ---");
+
+            if (NetworkManager.Singleton == null)
+            {
+                Debug.LogError("[GNM] NetworkManager.Singleton is null. Cannot start dedicated server.");
+                return;
+            }
+            
+            NetworkManager.Singleton.StartServer();
+            NetworkManager.Singleton.SceneManager.LoadScene("GameScene", LoadSceneMode.Single);
+        }
+#endif
     }
 }
