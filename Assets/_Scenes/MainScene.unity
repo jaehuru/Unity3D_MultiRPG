@@ -2387,7 +2387,7 @@ GameObject:
   - component: {fileID: 809811451}
   - component: {fileID: 809811453}
   m_Layer: 0
-  m_Name: GameServerManager
+  m_Name: ServerManager
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

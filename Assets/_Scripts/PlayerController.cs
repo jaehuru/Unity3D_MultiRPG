@@ -25,8 +25,14 @@ public class PlayerController : NetworkBehaviour
             {
                 GameNetworkManager.Instance.AddPlayerToList(OwnerClientId, NetworkObject);
             }
-            _networkDestination.Value = transform.position;
         }
+        _networkDestination.OnValueChanged += OnDestinationChanged;
+    }
+
+    public override void OnNetworkDespawn()
+    {
+        base.OnNetworkDespawn();
+        _networkDestination.OnValueChanged -= OnDestinationChanged;
     }
     
     void Update() 
@@ -47,24 +53,14 @@ public class PlayerController : NetworkBehaviour
                 }
             }
         }
-        
-        if (IsServer && agent != null && agent.enabled)
-        {
-            HandleServerMovement();
-        }
     } 
 
-    private void HandleServerMovement() 
-    { 
-        if (agent == null) return;
+    private void OnDestinationChanged(Vector3 previousValue, Vector3 newValue)
+    {
+        if (!IsServer || agent == null || !agent.enabled) return;
         
-        float distance = Vector3.Distance(agent.destination, _networkDestination.Value);
-        if (distance > 0.1f)
-        {
-            Debug.Log($"[Server] Moving Agent. Current Dest: {agent.destination}, New Dest: {_networkDestination.Value}, Distance: {distance}");
-            agent.SetDestination(_networkDestination.Value); 
-        }
-    } 
+        agent.SetDestination(newValue);
+    }
 
     [ServerRpc] void SubmitDestinationServerRpc(Vector3 destination) 
     {
