@@ -24,41 +24,27 @@
 
 ## Implementation Overview
 
-### Game Server (Unity Netcode)
-> 실시간 멀티플레이 로직을 담당하는 핵심 서버
-- 클라이언트가 제출한 토큰을 검증하여 접속 허용/거부
-- 플레이어 생성, 스폰 위치 결정, 이동/전투 상태 동기화
-- 서버 권위(Server-Authoritative) 구조  
-  → 모든 이동 및 공격 검증은 서버가 담당
-- 플레이어의 위치/스탯 변화/전투 로그 등 상태 관리
-- 세션 종료 또는 일정 주기마다 DB에 플레이어 정보를 요청하여 저장
-
----
-
 ### Client (Unity Client)
-- **동적 플레이어 추적 카메라**
-  - 로컬 플레이어 Transform을 자동 인식하여 카메라가 추적
-- **클릭 이동 + NavMesh 기반 제어**
-  - 레이캐스트로 도착 지점 계산 후 NavMeshAgent 이동
-  - 모든 이동은 서버와 동기화
+- 동적 플레이어 추적 카메라
+- 클릭 이동 + NavMesh 기반 제어
 - **UI / 입력 처리 / 세션 관리**
   - 로그인 → 토큰 저장 → 게임 서버 접속  
   - 서버에서 받은 상태를 화면에 반영
 
 ---
 
-### Account Server (Mock Account Server, Node.js)
-> *실제 인증 서버 구조를 그대로 따르지만 내부 로직은 단순한 개발용 Mock 버전*
-- `/register` → 회원가입 요청 처리 후 성공 응답 반환
-- `/login` → 아이디/비밀번호 확인 후 인증 토큰 발급(JSON Web Token 형태)
-- 클라이언트는 로그인 성공 시 토큰을 저장하고, 게임 서버 접속 시 토큰을 제출
+### Game Server (Dedicated Server, Unity Netcode)
+> *실시간 멀티플레이 로직을 담당하는 핵심 서버*
+- 토큰을 검증해 접속을 관리
+- 서버 권위 구조
+  - 플레이어 상태를 동기화·관리
+  - 필요 시 정보를 저장 
 
 ---
 
-### Database (SQLite)
-> 프로젝트의 영속성 계층
-- 계정 정보 저장  
-  - 아이디, 비밀번호 해시, 유저 고유 ID
-- 캐릭터 정보 저장  
-  - 레벨, 스탯, 인벤토리, 장비, 마지막 접속 위치
-- 주기적 저장 또는 로그아웃 시 저장
+### Account Server (Mock Account Server, Node.js + SQLite)
+> *인증·계정 관리를 담당하는 모의 계정 서버*
+- [README](https://github.com/jaehuru/RPG_Account_Server_Proto/blob/main/README.md)
+
+
+
