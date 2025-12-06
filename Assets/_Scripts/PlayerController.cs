@@ -12,17 +12,15 @@ public class PlayerController : NetworkBehaviour
     void Awake()
     {
         agent = GetComponent<NavMeshAgent>();
-        agent.enabled = false;
     } 
 
     public override void OnNetworkSpawn()
     {
         base.OnNetworkSpawn();
         
-        agent.enabled = true;
-        
         if (IsServer)
         {
+            agent.enabled = true;
             if (GameNetworkManager.Instance != null)
             {
                 GameNetworkManager.Instance.AddPlayerToList(OwnerClientId, NetworkObject);

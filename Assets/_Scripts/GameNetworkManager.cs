@@ -44,7 +44,12 @@ public class GameNetworkManager : MonoBehaviour
         NetworkManager.Singleton.OnClientConnectedCallback += OnClientConnected;
         NetworkManager.Singleton.OnClientDisconnectCallback += OnClientDisconnected;
         
-        StartDedicatedServer();
+#if UNITY_SERVER
+        if (!Application.isEditor)
+        {
+            StartDedicatedServer();
+        }
+#endif
     }
     
     public void AddPlayerToList(ulong clientId, NetworkObject networkObject)
@@ -67,6 +72,14 @@ public class GameNetworkManager : MonoBehaviour
 
     private async void ConnectionApprovalCallback(NetworkManager.ConnectionApprovalRequest request, NetworkManager.ConnectionApprovalResponse response)
     {
+        if (request.ClientNetworkId == NetworkManager.ServerClientId)
+        {
+            response.Pending = false;
+            response.Approved = true; 
+            response.CreatePlayerObject = false;
+            return;
+        }
+
         response.Approved = false;
         response.CreatePlayerObject = false;
         response.Pending = true;
@@ -151,9 +164,53 @@ public class GameNetworkManager : MonoBehaviour
         response.Pending = false;
     }
 
-    private void OnClientConnected(ulong clientId)
+    private async void OnClientConnected(ulong clientId)
     {
         Debug.Log($"[GNM] Client connected: {clientId}");
+        
+        if (NetworkManager.Singleton.IsServer && clientId == NetworkManager.ServerClientId)
+        {
+            Debug.Log("[GNM] Delaying host player spawn for 2 seconds to ensure scene readiness...");
+            await System.Threading.Tasks.Task.Delay(2000); // 2 second delay to wait for scene/object initialization (quick fix)
+            //TODO: need for a loading scene
+
+            Debug.Log($"[GNM] Host (client ID {clientId}) has connected. Spawning player...");
+            
+            string token = AuthManager.Instance.GetCurrentToken();
+            if (string.IsNullOrEmpty(token))
+            {
+                Debug.LogError("[GNM] Host has no token. Cannot spawn player.");
+                return;
+            }
+            
+            AuthValidationResult validationResult = await ServerAuthService.Instance.ValidateTokenAsync(token);
+            if (!validationResult.IsValid)
+            {
+                Debug.LogError($"[GNM] Host token validation failed: {validationResult.ErrorMessage}. Cannot spawn player.");
+                return;
+            }
+            string uid = validationResult.UserId;
+            
+            PlayerData loadedPlayerData = await PlayerServerDataService.Instance.LoadPlayerDataAsync(token);
+            Vector3 spawnPos = Vector3.zero;
+            if (loadedPlayerData != null && loadedPlayerData.position != null)
+            {
+                spawnPos = loadedPlayerData.position.ToVector3();
+                Debug.Log($"[GNM] Loaded player data for host {uid} at {spawnPos}");
+            }
+            else
+            {
+                Debug.Log($"[GNM] No saved data for host {uid}, spawning at default.");
+            }
+            
+            GameObject playerInstance = Instantiate(playerPrefab, spawnPos, Quaternion.identity);
+            
+            NetworkObject networkObject = playerInstance.GetComponent<NetworkObject>();
+            networkObject.SpawnAsPlayerObject(clientId, true);
+            
+            connectedClientsData[clientId] = new ClientInfo { Uid = uid, JwtToken = token };
+            Debug.Log($"[GNM] Host player spawned for client {clientId} (UID: {uid}).");
+        }
     }
 
     private async void OnClientDisconnected(ulong clientId)
@@ -209,7 +266,7 @@ public class GameNetworkManager : MonoBehaviour
 
     public bool TryGetClientInfo(ulong clientId, out ClientInfo clientInfo)
     {
-        clientInfo = null; // Initialize out parameter
+        clientInfo = null;
         return connectedClientsData.TryGetValue(clientId, out clientInfo);
     }
     
@@ -220,9 +277,25 @@ public class GameNetworkManager : MonoBehaviour
             Debug.LogError("[GNM] NetworkManager.Singleton is null. Cannot start host.");
             return;
         }
+        if (AuthManager.Instance == null)
+        {
+            Debug.LogError("[GNM] AuthManager.Instance is null. Cannot start host.");
+            return;
+        }
+
+        string token = AuthManager.Instance.GetCurrentToken();
+        if (string.IsNullOrEmpty(token))
+        {
+            Debug.LogError("[GNM] Cannot start host: User is not logged in (no JWT token).");
+            return;
+        }
+        NetworkManager.Singleton.NetworkConfig.ConnectionData = System.Text.Encoding.UTF8.GetBytes(token);
+        
         if (NetworkManager.Singleton.StartHost())
         {
             Debug.Log("[GNM] Host started successfully.");
+            
+            NetworkManager.Singleton.SceneManager.LoadScene("GameScene", LoadSceneMode.Single);
         }
         else
         {
@@ -237,6 +310,20 @@ public class GameNetworkManager : MonoBehaviour
             Debug.LogError("[GNM] NetworkManager.Singleton is null. Cannot start client.");
             return;
         }
+        if (AuthManager.Instance == null)
+        {
+            Debug.LogError("[GNM] AuthManager.Instance is null. Cannot start client.");
+            return;
+        }
+
+        string token = AuthManager.Instance.GetCurrentToken();
+        if (string.IsNullOrEmpty(token))
+        {
+            Debug.LogError("[GNM] Cannot start client: User is not logged in (no JWT token).");
+            return;
+        }
+        NetworkManager.Singleton.NetworkConfig.ConnectionData = System.Text.Encoding.UTF8.GetBytes(token);
+        
         if (NetworkManager.Singleton.StartClient())
         {
             Debug.Log("[GNM] Client started successfully.");
@@ -247,23 +334,6 @@ public class GameNetworkManager : MonoBehaviour
         }
     }
 
-    public void StartServer()
-    {
-        if (NetworkManager.Singleton == null)
-        {
-            Debug.LogError("[GNM] NetworkManager.Singleton is null. Cannot start server.");
-            return;
-        }
-        if (NetworkManager.Singleton.StartServer())
-        {
-            Debug.Log("[GNM] Server started successfully.");
-        }
-        else
-        {
-            Debug.LogError("[GNM] Failed to start server.");
-        }
-    }
-    
     public void StartDedicatedServer()
     {
 #if UNITY_SERVER
