@@ -4411,9 +4411,9 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 1059070569}
-        m_TargetAssemblyTypeName: AuthManager, Assembly-CSharp
-        m_MethodName: StartHostGame
+      - m_Target: {fileID: 1855613125}
+        m_TargetAssemblyTypeName: GameNetworkManager, Assembly-CSharp
+        m_MethodName: StartHost
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -5256,9 +5256,9 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 1059070569}
-        m_TargetAssemblyTypeName: AuthManager, Assembly-CSharp
-        m_MethodName: JoinGame
+      - m_Target: {fileID: 1855613125}
+        m_TargetAssemblyTypeName: GameNetworkManager, Assembly-CSharp
+        m_MethodName: StartClient
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}

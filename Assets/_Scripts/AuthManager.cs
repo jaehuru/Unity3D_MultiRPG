@@ -219,48 +219,4 @@ public class AuthManager : MonoBehaviour
         registerPanel?.SetActive(true);
         networkRoleSelectionPanel?.SetActive(false);
     }
-    
-    private void SetConnectionDataWithToken()
-    {
-        if (NetworkManager.Singleton == null)
-        {
-            Debug.LogError("NetworkManager.Singleton is null. Cannot set connection data.");
-            return;
-        }
-
-        string jwtToken = GetCurrentToken();
-        if (string.IsNullOrEmpty(jwtToken))
-        {
-            Debug.LogError("JWT token is null or empty. Cannot set connection data.");
-            return;
-        }
-
-        byte[] payload = Encoding.UTF8.GetBytes(jwtToken);
-        NetworkManager.Singleton.NetworkConfig.ConnectionData = payload;
-        Debug.Log($"Client-side: Setting NetworkConfig.ConnectionData with payload length: {payload.Length}, payload string: {Encoding.UTF8.GetString(payload)}");
-    }
-
-    public void StartHostGame()
-    {
-        SetConnectionDataWithToken();
-        if (GameNetworkManager.Instance == null)
-        {
-            Debug.LogError("GameNetworkManager.Instance is null. Cannot start host.");
-            return;
-        }
-        GameNetworkManager.Instance.StartHost();
-        networkRoleSelectionPanel?.SetActive(false);
-    }
-
-    public void JoinGame()
-    {
-        SetConnectionDataWithToken();
-        if (GameNetworkManager.Instance == null)
-        {
-            Debug.LogError("GameNetworkManager.Instance is null. Cannot start client.");
-            return;
-        }
-        GameNetworkManager.Instance.StartClient();
-        networkRoleSelectionPanel?.SetActive(false);
-    }
 }
