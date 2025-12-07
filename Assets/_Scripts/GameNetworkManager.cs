@@ -15,6 +15,7 @@ public class GameNetworkManager : MonoBehaviour
         public string Uid;
         public string JwtToken;
         public NetworkObject PlayerNetworkObject;
+        public Vector3 PlayerSpawnPosition;
     }
 
     private readonly Dictionary<ulong, ClientInfo> connectedClientsData = new();
@@ -47,9 +48,57 @@ public class GameNetworkManager : MonoBehaviour
 #if UNITY_SERVER
         if (!Application.isEditor)
         {
-            StartDedicatedServer();
+            StartServer();
         }
 #endif
+    }
+    
+    private void OnLoadCompleteHandler(ulong clientId, string sceneName, LoadSceneMode loadSceneMode)
+    {
+        if (!NetworkManager.Singleton.IsServer) return;
+
+        Debug.Log($"[GNM] OnLoadCompleteHandler: Scene '{sceneName}' loaded for client {clientId}. Mode: {loadSceneMode}.");
+        
+        if (connectedClientsData.TryGetValue(clientId, out ClientInfo clientInfo))
+        {
+            if (clientInfo.PlayerNetworkObject != null)
+            {
+                Debug.LogWarning($"[GNM] Client {clientId} (UID: {clientInfo.Uid}) already has a player object. Skipping manual spawn.");
+                return;
+            }
+
+            if (playerPrefab == null)
+            {
+                Debug.LogError($"[GNM] Player prefab is not assigned. Cannot spawn player for client {clientId}.");
+                return;
+            }
+            
+            GameObject playerInstance = Instantiate(playerPrefab, clientInfo.PlayerSpawnPosition, Quaternion.identity);
+            NetworkObject networkObject = playerInstance.GetComponent<NetworkObject>();
+
+            if (networkObject == null)
+            {
+                Debug.LogError($"[GNM] Player prefab does not have a NetworkObject component. Cannot spawn for client {clientId}.");
+                Destroy(playerInstance);
+                return;
+            }
+
+            networkObject.SpawnAsPlayerObject(clientId, true);
+            clientInfo.PlayerNetworkObject = networkObject;
+            Debug.Log($"[GNM] Manually spawned player for client {clientId} (UID: {clientInfo.Uid}) at {clientInfo.PlayerSpawnPosition}.");
+        }
+        else
+        {
+            Debug.LogWarning($"[GNM] ClientInfo not found for client {clientId} in OnLoadCompleteHandler. Cannot spawn player.");
+        }
+    }
+    
+    private void OnDestroy()
+    {
+        if (NetworkManager.Singleton != null && NetworkManager.Singleton.SceneManager != null)
+        {
+            NetworkManager.Singleton.SceneManager.OnLoadComplete -= OnLoadCompleteHandler;
+        }
     }
     
     public void AddPlayerToList(ulong clientId, NetworkObject networkObject)
@@ -72,32 +121,32 @@ public class GameNetworkManager : MonoBehaviour
 
     private async void ConnectionApprovalCallback(NetworkManager.ConnectionApprovalRequest request, NetworkManager.ConnectionApprovalResponse response)
     {
-        if (request.ClientNetworkId == NetworkManager.ServerClientId)
-        {
-            response.Pending = false;
-            response.Approved = true; 
-            response.CreatePlayerObject = false;
-            return;
-        }
-
         response.Approved = false;
         response.CreatePlayerObject = false;
         response.Pending = true;
 
         string jwtToken = "";
-        try
+        
+        if (request.ClientNetworkId == NetworkManager.ServerClientId && NetworkManager.Singleton.IsHost)
         {
-            if (request.Payload != null && request.Payload.Length > 0)
-            {
-                jwtToken = Encoding.UTF8.GetString(request.Payload);
-            }
+            jwtToken = AuthManager.Instance.GetCurrentToken();
         }
-        catch (Exception ex)
+        else
         {
-            Debug.LogWarning($"[Approval] Failed to parse payload as JWT: {ex}");
-            response.Reason = "Invalid payload format.";
-            response.Pending = false;
-            return;
+            try
+            {
+                if (request.Payload != null && request.Payload.Length > 0)
+                {
+                    jwtToken = Encoding.UTF8.GetString(request.Payload);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[Approval] Failed to parse payload as JWT: {ex}");
+                response.Reason = "Invalid payload format.";
+                response.Pending = false;
+                return;
+            }
         }
 
         if (string.IsNullOrEmpty(jwtToken))
@@ -148,11 +197,11 @@ public class GameNetworkManager : MonoBehaviour
             // --- End Player Data Loading ---
 
             response.Approved = true;
-            response.CreatePlayerObject = true;
+            response.CreatePlayerObject = false;
             response.Position = spawnPos;
             response.Rotation = Quaternion.identity;
             
-            connectedClientsData[request.ClientNetworkId] = new ClientInfo { Uid = uid, JwtToken = jwtToken };
+            connectedClientsData[request.ClientNetworkId] = new ClientInfo { Uid = uid, JwtToken = jwtToken, PlayerSpawnPosition = spawnPos };
             Debug.Log($"[Approval] Client {request.ClientNetworkId} (UID: {uid}) approved.");
         }
         else
@@ -164,55 +213,16 @@ public class GameNetworkManager : MonoBehaviour
         response.Pending = false;
     }
 
-    private async void OnClientConnected(ulong clientId)
+    private void OnClientConnected(ulong clientId)
     {
         Debug.Log($"[GNM] Client connected: {clientId}");
         
-        if (NetworkManager.Singleton.IsServer && clientId == NetworkManager.ServerClientId)
+        if (!NetworkManager.Singleton.IsServer)
         {
-            Debug.Log("[GNM] Delaying host player spawn for 2 seconds to ensure scene readiness...");
-            await System.Threading.Tasks.Task.Delay(2000); // 2 second delay to wait for scene/object initialization (quick fix)
-            //TODO: need for a loading scene
-
-            Debug.Log($"[GNM] Host (client ID {clientId}) has connected. Spawning player...");
-            
-            string token = AuthManager.Instance.GetCurrentToken();
-            if (string.IsNullOrEmpty(token))
-            {
-                Debug.LogError("[GNM] Host has no token. Cannot spawn player.");
-                return;
-            }
-            
-            AuthValidationResult validationResult = await ServerAuthService.Instance.ValidateTokenAsync(token);
-            if (!validationResult.IsValid)
-            {
-                Debug.LogError($"[GNM] Host token validation failed: {validationResult.ErrorMessage}. Cannot spawn player.");
-                return;
-            }
-            string uid = validationResult.UserId;
-            
-            PlayerData loadedPlayerData = await PlayerServerDataService.Instance.LoadPlayerDataAsync(token);
-            Vector3 spawnPos = Vector3.zero;
-            if (loadedPlayerData != null && loadedPlayerData.position != null)
-            {
-                spawnPos = loadedPlayerData.position.ToVector3();
-                Debug.Log($"[GNM] Loaded player data for host {uid} at {spawnPos}");
-            }
-            else
-            {
-                Debug.Log($"[GNM] No saved data for host {uid}, spawning at default.");
-            }
-            
-            GameObject playerInstance = Instantiate(playerPrefab, spawnPos, Quaternion.identity);
-            
-            NetworkObject networkObject = playerInstance.GetComponent<NetworkObject>();
-            networkObject.SpawnAsPlayerObject(clientId, true);
-            
-            connectedClientsData[clientId] = new ClientInfo { Uid = uid, JwtToken = token };
-            Debug.Log($"[GNM] Host player spawned for client {clientId} (UID: {uid}).");
+            return;
         }
     }
-
+    
     private async void OnClientDisconnected(ulong clientId)
     {
         Debug.Log($"[GNM] Client disconnected: {clientId}");
@@ -270,6 +280,9 @@ public class GameNetworkManager : MonoBehaviour
         return connectedClientsData.TryGetValue(clientId, out clientInfo);
     }
     
+    // ============================================================
+    //  START METHODS
+    // ============================================================
     public void StartHost()
     {
         if (NetworkManager.Singleton == null)
@@ -294,7 +307,7 @@ public class GameNetworkManager : MonoBehaviour
         if (NetworkManager.Singleton.StartHost())
         {
             Debug.Log("[GNM] Host started successfully.");
-            
+            NetworkManager.Singleton.SceneManager.OnLoadComplete += OnLoadCompleteHandler;
             NetworkManager.Singleton.SceneManager.LoadScene("GameScene", LoadSceneMode.Single);
         }
         else
@@ -334,22 +347,18 @@ public class GameNetworkManager : MonoBehaviour
         }
     }
 
-    public void StartDedicatedServer()
+    public void StartServer()
     {
-#if UNITY_SERVER
-        if (!Application.isEditor)
-        {
-            Debug.Log("--- DEDICATED SERVER STARTING ---");
+        Debug.Log("--- SERVER STARTING ---");
 
-            if (NetworkManager.Singleton == null)
-            {
-                Debug.LogError("[GNM] NetworkManager.Singleton is null. Cannot start dedicated server.");
-                return;
-            }
-            
-            NetworkManager.Singleton.StartServer();
-            NetworkManager.Singleton.SceneManager.LoadScene("GameScene", LoadSceneMode.Single);
+        if (NetworkManager.Singleton == null)
+        {
+            Debug.LogError("[GNM] NetworkManager.Singleton is null. Cannot start server.");
+            return;
         }
-#endif
+        
+        NetworkManager.Singleton.StartServer();
+        NetworkManager.Singleton.SceneManager.OnLoadComplete += OnLoadCompleteHandler;
+        NetworkManager.Singleton.SceneManager.LoadScene("GameScene", LoadSceneMode.Single);
     }
 }
