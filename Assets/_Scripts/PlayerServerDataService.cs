@@ -88,7 +88,7 @@ public class PlayerServerDataService : MonoBehaviour
             request.SetRequestHeader("Authorization", "Bearer " + jwtToken);
             request.downloadHandler = new DownloadHandlerBuffer();
 
-            Debug.Log($"[PlayerServerDataService] Sending load player data request to: {loadDataUrl}");
+    
             var operation = request.SendWebRequest();
 
             while (!operation.isDone) await Task.Yield();
@@ -101,7 +101,7 @@ public class PlayerServerDataService : MonoBehaviour
             else
             {
                 string responseText = request.downloadHandler.text;
-                Debug.Log($"[PlayerServerDataService] Load player data response: {responseText}");
+    
                 try
                 {
                     LoadPlayerResponse response = JsonUtility.FromJson<LoadPlayerResponse>(responseText);
@@ -135,7 +135,7 @@ public class PlayerServerDataService : MonoBehaviour
             request.uploadHandler = new UploadHandlerRaw(bodyRaw);
             request.downloadHandler = new DownloadHandlerBuffer();
 
-            Debug.Log($"[PlayerServerDataService] Sending save player data request to: {saveDataUrl}");
+    
             var operation = request.SendWebRequest();
 
             while (!operation.isDone) await Task.Yield();
@@ -147,7 +147,7 @@ public class PlayerServerDataService : MonoBehaviour
             }
             else
             {
-                Debug.Log($"[PlayerServerDataService] Save player data success: {request.downloadHandler.text}");
+    
                 return true;
             }
         }

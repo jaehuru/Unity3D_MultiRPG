@@ -76,7 +76,7 @@ public class ServerAuthService : MonoBehaviour
         request.downloadHandler = new DownloadHandlerBuffer();
         request.SetRequestHeader("Content-Type", "application/json");
 
-        Debug.Log($"[ServerAuthService] Sending token validation request to: {authServerUrl}");
+
         yield return request.SendWebRequest();
 
         if (request.result != UnityWebRequest.Result.Success)
@@ -88,7 +88,7 @@ public class ServerAuthService : MonoBehaviour
         else
         {
             string responseText = request.downloadHandler.text;
-            Debug.Log($"[ServerAuthService] Token validation response: {responseText}");
+
 
             try
             {

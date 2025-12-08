@@ -1,4 +1,3 @@
-
 using UnityEngine;
 using UnityEngine.Networking;
 using System.Collections;
@@ -59,8 +58,7 @@ public class AuthService : MonoBehaviour
         request.downloadHandler = new DownloadHandlerBuffer();
         request.SetRequestHeader("Content-Type", "application/json");
 
-        Debug.Log("Sending registration request to: " + request.url);
-        yield return request.SendWebRequest();
+                yield return request.SendWebRequest();
 
         if (request.result != UnityWebRequest.Result.Success)
         {
@@ -70,7 +68,7 @@ public class AuthService : MonoBehaviour
         }
         else
         {
-            Debug.Log("Registration Success: " + request.downloadHandler.text);
+
             callback?.Invoke(true, "Registration Successful!");
         }
     }
@@ -85,7 +83,7 @@ public class AuthService : MonoBehaviour
         request.downloadHandler = new DownloadHandlerBuffer();
         request.SetRequestHeader("Content-Type", "application/json");
 
-        Debug.Log("Sending login request to: " + request.url);
+
         yield return request.SendWebRequest();
 
         if (request.result != UnityWebRequest.Result.Success)
@@ -96,16 +94,16 @@ public class AuthService : MonoBehaviour
         }
         else
         {
-            Debug.Log("Login Success: " + request.downloadHandler.text);
+
             string responseText = request.downloadHandler.text;
-            Debug.Log($"[AuthService] Raw login response: {responseText}"); 
+ 
             try
             {
                 AuthResponse authResponse = JsonUtility.FromJson<AuthResponse>(responseText);
                 if (authResponse != null && !string.IsNullOrEmpty(authResponse.token))
                 {
                     _jwtToken = authResponse.token;
-                    Debug.Log("Received JWT Token: " + _jwtToken);
+        
                     StoreToken(_jwtToken);
                     callback?.Invoke(true, "Login Successful!");
                     OnAuthSuccess.Invoke();
@@ -143,8 +141,7 @@ public class AuthService : MonoBehaviour
     {
         PlayerPrefs.SetString(JWT_TOKEN_KEY, token);
         PlayerPrefs.Save();
-        Debug.Log("JWT token stored in PlayerPrefs.");
-    }
+            }
 
     public string GetStoredToken()
     {
@@ -160,8 +157,7 @@ public class AuthService : MonoBehaviour
         PlayerPrefs.DeleteKey(JWT_TOKEN_KEY);
         PlayerPrefs.Save();
         _jwtToken = "";
-        Debug.Log("JWT token cleared from PlayerPrefs.");
-    }
+            }
 
     public string GetCurrentToken()
     {
@@ -175,8 +171,7 @@ public class AuthService : MonoBehaviour
     public void InvalidateToken()
     {
         ClearStoredToken();
-        Debug.Log("[AuthService] JWT token invalidated.");
-    }
+            }
 }
     
 

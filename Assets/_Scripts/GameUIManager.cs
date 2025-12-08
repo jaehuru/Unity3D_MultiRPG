@@ -46,7 +46,7 @@ public class GameUIManager : MonoBehaviour
 
     public void OnLogoutButtonClicked()
     {
-        Debug.Log("[GameUIManager] Logout button clicked.");
+
         if (NetworkManager.Singleton != null)
         {
             NetworkManager.Singleton.Shutdown();
@@ -68,7 +68,7 @@ public class GameUIManager : MonoBehaviour
 
     public void OnQuitGameButtonClicked()
     {
-        Debug.Log("[GameUIManager] Quit Game button clicked.");
+
         if (NetworkManager.Singleton != null)
         {
             NetworkManager.Singleton.Shutdown();

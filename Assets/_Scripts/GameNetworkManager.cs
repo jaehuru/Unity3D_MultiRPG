@@ -57,8 +57,7 @@ public class GameNetworkManager : MonoBehaviour
     {
         if (!NetworkManager.Singleton.IsServer) return;
 
-        Debug.Log($"[GNM] OnLoadCompleteHandler: Scene '{sceneName}' loaded for client {clientId}. Mode: {loadSceneMode}.");
-        
+                
         if (connectedClientsData.TryGetValue(clientId, out ClientInfo clientInfo))
         {
             if (clientInfo.PlayerNetworkObject != null)
@@ -85,7 +84,7 @@ public class GameNetworkManager : MonoBehaviour
 
             networkObject.SpawnAsPlayerObject(clientId, true);
             clientInfo.PlayerNetworkObject = networkObject;
-            Debug.Log($"[GNM] Manually spawned player for client {clientId} (UID: {clientInfo.Uid}) at {clientInfo.PlayerSpawnPosition}.");
+
         }
         else
         {
@@ -106,7 +105,7 @@ public class GameNetworkManager : MonoBehaviour
         if (NetworkManager.Singleton.IsServer && connectedClientsData.TryGetValue(clientId, out ClientInfo info))
         {
             info.PlayerNetworkObject = networkObject;
-            Debug.Log($"[GNM] Added player NetworkObject for client {clientId} (UID: {info.Uid}).");
+
         }
     }
 
@@ -115,7 +114,7 @@ public class GameNetworkManager : MonoBehaviour
         if (NetworkManager.Singleton.IsServer && connectedClientsData.ContainsKey(clientId))
         {
             connectedClientsData.Remove(clientId);
-            Debug.Log($"[GNM] Removed client {clientId} from connectedClientsData.");
+
         }
     }
 
@@ -171,7 +170,7 @@ public class GameNetworkManager : MonoBehaviour
         if (validationResult.IsValid)
         {
             uid = validationResult.UserId;
-            Debug.Log($"[Approval] Token validated for user: {uid}");
+
             
             // --- NEW CHECK: Prevent multiple logins for the same user ID ---
             // Check if this UID is already connected
@@ -203,11 +202,11 @@ public class GameNetworkManager : MonoBehaviour
             if (loadedPlayerData != null && loadedPlayerData.position != null)
             {
                 spawnPos = loadedPlayerData.position.ToVector3();
-                Debug.Log($"[Approval] Loaded player data for {uid} at {spawnPos}");
+    
             }
             else
             {
-                Debug.Log($"[Approval] No saved player data found or data is invalid for {uid}, spawning at default.");
+    
             }
             // --- End Player Data Loading ---
 
@@ -217,7 +216,7 @@ public class GameNetworkManager : MonoBehaviour
             response.Rotation = Quaternion.identity;
             
             connectedClientsData[request.ClientNetworkId] = new ClientInfo { Uid = uid, JwtToken = jwtToken, PlayerSpawnPosition = spawnPos };
-            Debug.Log($"[Approval] Client {request.ClientNetworkId} (UID: {uid}) approved.");
+
         }
         else
         {
@@ -230,7 +229,7 @@ public class GameNetworkManager : MonoBehaviour
 
     private void OnClientConnected(ulong clientId)
     {
-        Debug.Log($"[GNM] Client connected: {clientId}");
+
         
         if (!NetworkManager.Singleton.IsServer)
         {
@@ -240,7 +239,7 @@ public class GameNetworkManager : MonoBehaviour
     
     private async void OnClientDisconnected(ulong clientId)
     {
-        Debug.Log($"[GNM] Client disconnected: {clientId}");
+
         
         if (!NetworkManager.Singleton.IsServer)
         {
@@ -269,7 +268,7 @@ public class GameNetworkManager : MonoBehaviour
                 bool saveSuccess = await PlayerServerDataService.Instance.SavePlayerDataAsync(jwtToken, dataToSave);
                 if (saveSuccess)
                 {
-                    Debug.Log($"[GNM] Saved data for uid {uid} on disconnect at {pos}.");
+        
                 }
                 else
                 {
@@ -321,7 +320,7 @@ public class GameNetworkManager : MonoBehaviour
         
         if (NetworkManager.Singleton.StartHost())
         {
-            Debug.Log("[GNM] Host started successfully.");
+    
             NetworkManager.Singleton.SceneManager.OnLoadComplete += OnLoadCompleteHandler;
             NetworkManager.Singleton.SceneManager.LoadScene("GameScene", LoadSceneMode.Single);
         }
@@ -354,7 +353,7 @@ public class GameNetworkManager : MonoBehaviour
         
         if (NetworkManager.Singleton.StartClient())
         {
-            Debug.Log("[GNM] Client started successfully.");
+    
         }
         else
         {
@@ -364,7 +363,7 @@ public class GameNetworkManager : MonoBehaviour
 
     public void StartServer()
     {
-        Debug.Log("--- SERVER STARTING ---");
+
 
         if (NetworkManager.Singleton == null)
         {

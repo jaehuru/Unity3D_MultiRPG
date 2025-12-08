@@ -98,7 +98,7 @@ public class PlayerController : NetworkBehaviour
 
     [ServerRpc] void SubmitDestinationServerRpc(Vector3 destination) 
     {
-        Debug.Log($"[ServerRpc] Received new destination on server: {destination}");
+
         _networkDestination.Value = destination; 
     } 
 }

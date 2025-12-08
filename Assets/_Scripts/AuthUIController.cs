@@ -98,8 +98,7 @@ public class AuthUIController : MonoBehaviour
     
     private void OnAuthServiceSuccess()
     {
-        Debug.Log("[AuthUIController] Authentication successful, displaying role selection.");
-        ShowRoleSelectionPanel();
+                ShowRoleSelectionPanel();
     }
     
     private void HandleClientDisconnect(ulong clientId)
@@ -111,8 +110,7 @@ public class AuthUIController : MonoBehaviour
         {
             reason = "Failed to connect or lost connection.";
         }
-        Debug.Log($"[AuthUIController] Client disconnected from server. Reason: {reason}");
-
+        
         ShowLoginPanel(reason);
     }
     
@@ -137,7 +135,7 @@ public class AuthUIController : MonoBehaviour
         {
             AuthService.Instance.RegisterUser(username, email, password, (success, message) => {
                 if (registerStatusText != null) registerStatusText.text = message;
-                if (success) Debug.Log("[AuthUIController] Registration successful callback.");
+    
                 else Debug.LogError("[AuthUIController] Registration failed callback: " + message);
             });
         }
@@ -162,7 +160,7 @@ public class AuthUIController : MonoBehaviour
         {
             AuthService.Instance.LoginUser(username, password, (success, message) => {
                 if (loginStatusText != null) loginStatusText.text = message;
-                if (success) Debug.Log("[AuthUIController] Login successful callback.");
+    
                 else Debug.LogError("[AuthUIController] Login failed callback: " + message);
             });
         }
@@ -171,7 +169,7 @@ public class AuthUIController : MonoBehaviour
 
     public void OnQuitApplicationButtonClick()
     {
-        Debug.Log("[AuthUIController] Quit application button clicked.");
+
 #if UNITY_EDITOR
         UnityEditor.EditorApplication.isPlaying = false;
 #else
@@ -181,10 +179,9 @@ public class AuthUIController : MonoBehaviour
     
     public void ShowRoleSelectionPanel()
     {
-        // Check if a token is present before showing role selection
         if (AuthService.Instance != null && !string.IsNullOrEmpty(AuthService.Instance.GetCurrentToken()))
         {
-            Debug.Log("[AuthUIController] Displaying network role selection.");
+    
             loginPanel?.SetActive(false);
             registerPanel?.SetActive(false);
             networkRoleSelectionPanel?.SetActive(true);
