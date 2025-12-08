@@ -1,6 +1,5 @@
 using UnityEngine;
 using Unity.Netcode;
-using System.Threading.Tasks; // For async/await
 
 [RequireComponent(typeof(NetworkObject))]
 public class PlayerServerSave : NetworkBehaviour
@@ -57,7 +56,7 @@ public class PlayerServerSave : NetworkBehaviour
             bool saveSuccess = await PlayerServerDataService.Instance.SavePlayerDataAsync(jwtToken, dataToSave);
             if (saveSuccess)
             {
-                Debug.Log($"[PlayerServerSave] Autosaved uid:{uid} pos:{pos}");
+        
             }
             else
             {

@@ -5,27 +5,24 @@ using System.Text;
 using System.Threading.Tasks;
 using System;
 
-// Helper class to deserialize the JWT validation response
 [Serializable]
 public class ValidateTokenResponse
 {
     public string message;
-    public DecodedTokenData decoded; // This will hold the id and username if valid
+    public DecodedTokenData decoded;
 }
 
-// Helper class to hold the decoded data from JWT
 [Serializable]
 public class DecodedTokenData
 {
     public int id;
     public string username;
-    // Add other fields from your JWT payload if necessary, e.g., email, roles
 }
 
 public class AuthValidationResult
 {
     public bool IsValid;
-    public string UserId; // This will be the username from the decoded token
+    public string UserId;
     public string ErrorMessage;
 
     public AuthValidationResult(bool isValid, string userId = null, string errorMessage = null)
@@ -41,7 +38,7 @@ public class ServerAuthService : MonoBehaviour
     public static ServerAuthService Instance { get; private set; }
 
     [Header("Auth Server Settings")]
-    public string authServerUrl = "http://localhost:3000/api/auth/validateToken"; // Endpoint for JWT validation
+    public string authServerUrl = "http://localhost:3000/api/auth/validateToken";
 
     private void Awake()
     {
@@ -55,8 +52,7 @@ public class ServerAuthService : MonoBehaviour
             DontDestroyOnLoad(gameObject);
         }
     }
-
-    // Public method to be called by GameNetworkManager
+    
     public Task<AuthValidationResult> ValidateTokenAsync(string jwtToken)
     {
         var tcs = new TaskCompletionSource<AuthValidationResult>();
@@ -80,7 +76,7 @@ public class ServerAuthService : MonoBehaviour
         request.downloadHandler = new DownloadHandlerBuffer();
         request.SetRequestHeader("Content-Type", "application/json");
 
-        Debug.Log($"[ServerAuthService] Sending token validation request to: {authServerUrl}");
+
         yield return request.SendWebRequest();
 
         if (request.result != UnityWebRequest.Result.Success)
@@ -92,7 +88,7 @@ public class ServerAuthService : MonoBehaviour
         else
         {
             string responseText = request.downloadHandler.text;
-            Debug.Log($"[ServerAuthService] Token validation response: {responseText}");
+
 
             try
             {
@@ -100,7 +96,6 @@ public class ServerAuthService : MonoBehaviour
 
                 if (response != null && response.decoded != null && !string.IsNullOrEmpty(response.decoded.username))
                 {
-                    // Token is valid and decoded user data is available
                     tcs.SetResult(new AuthValidationResult(true, userId: response.decoded.username));
                 }
                 else
