@@ -129,7 +129,7 @@ public class GameNetworkManager : MonoBehaviour
         
         if (request.ClientNetworkId == NetworkManager.ServerClientId && NetworkManager.Singleton.IsHost)
         {
-            jwtToken = AuthManager.Instance.GetCurrentToken();
+            jwtToken = AuthService.Instance.GetCurrentToken();
         }
         else
         {
@@ -172,6 +172,21 @@ public class GameNetworkManager : MonoBehaviour
         {
             uid = validationResult.UserId;
             Debug.Log($"[Approval] Token validated for user: {uid}");
+            
+            // --- NEW CHECK: Prevent multiple logins for the same user ID ---
+            // Check if this UID is already connected
+            foreach (var clientEntry in connectedClientsData.Values)
+            {
+                if (clientEntry.Uid == uid)
+                {
+                    Debug.LogWarning($"[Approval] User {uid} (client {request.ClientNetworkId}) is already connected. Blocking new connection.");
+                    response.Approved = false;
+                    response.Reason = "User already connected.";
+                    response.Pending = false;
+                    return;
+                }
+            }
+            // --- END NEW CHECK ---
             
             // --- Player Data Loading ---
             if (PlayerServerDataService.Instance == null)
@@ -290,13 +305,13 @@ public class GameNetworkManager : MonoBehaviour
             Debug.LogError("[GNM] NetworkManager.Singleton is null. Cannot start host.");
             return;
         }
-        if (AuthManager.Instance == null)
+        if (AuthService.Instance == null)
         {
-            Debug.LogError("[GNM] AuthManager.Instance is null. Cannot start host.");
+            Debug.LogError("[GNM] AuthService.Instance is null. Cannot start host.");
             return;
         }
 
-        string token = AuthManager.Instance.GetCurrentToken();
+        string token = AuthService.Instance.GetCurrentToken();
         if (string.IsNullOrEmpty(token))
         {
             Debug.LogError("[GNM] Cannot start host: User is not logged in (no JWT token).");
@@ -323,13 +338,13 @@ public class GameNetworkManager : MonoBehaviour
             Debug.LogError("[GNM] NetworkManager.Singleton is null. Cannot start client.");
             return;
         }
-        if (AuthManager.Instance == null)
+        if (AuthService.Instance == null)
         {
-            Debug.LogError("[GNM] AuthManager.Instance is null. Cannot start client.");
+            Debug.LogError("[GNM] AuthService.Instance is null. Cannot start client.");
             return;
         }
 
-        string token = AuthManager.Instance.GetCurrentToken();
+        string token = AuthService.Instance.GetCurrentToken();
         if (string.IsNullOrEmpty(token))
         {
             Debug.LogError("[GNM] Cannot start client: User is not logged in (no JWT token).");
