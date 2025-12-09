@@ -35,6 +35,15 @@ public class PlayerController : NetworkBehaviour
             }
         }
 
+        if (IsOwner)
+        {
+            // 로컬 플레이어일 경우, 자신의 Health 컴포넌트를 UI 매니저에 등록
+            Health health = GetComponent<Health>();
+            if (health != null && GameUIManager.Instance != null)
+            {
+                GameUIManager.Instance.RegisterLocalPlayerHealth(health);
+            }
+        }
   
         networkPlayerName.OnValueChanged += OnPlayerNameChanged;
         OnPlayerNameChanged(default, networkPlayerName.Value); 

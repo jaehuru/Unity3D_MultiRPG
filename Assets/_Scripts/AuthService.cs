@@ -10,7 +10,6 @@ public class AuthService : MonoBehaviour
 
     [Header("Server Settings")]
     public string serverUrl = "http://localhost:3000/api/auth/";
-
     [Header("Events")]
     public UnityEvent OnAuthSuccess; 
 

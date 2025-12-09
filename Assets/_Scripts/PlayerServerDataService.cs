@@ -28,6 +28,7 @@ public class PlayerPosition
 [Serializable]
 public class PlayerData
 {
+    // - Player data variables to be expanded
     public PlayerPosition position;
     public int health;
     public List<string> inventory;

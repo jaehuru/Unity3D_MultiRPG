@@ -294,9 +294,9 @@ public class GameNetworkManager : MonoBehaviour
         return connectedClientsData.TryGetValue(clientId, out clientInfo);
     }
     
-    // ============================================================
+    // ============================================
     //  START METHODS
-    // ============================================================
+    // ============================================
     public void StartHost()
     {
         if (NetworkManager.Singleton == null)
