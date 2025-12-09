@@ -3,6 +3,8 @@ using UnityEngine.SceneManagement;
 using Unity.Netcode;
 using UnityEngine.InputSystem;
 using System.Collections;
+using UnityEngine.UI;
+using TMPro;
 
 public class GameUIManager : MonoBehaviour
 {
@@ -10,6 +12,12 @@ public class GameUIManager : MonoBehaviour
 
     [Header("UI Panels")]
     [SerializeField] private GameObject quitPanel;
+
+    [Header("HUD Elements")]
+    [SerializeField] private Slider hudHealthSlider;
+    [SerializeField] private TextMeshProUGUI hudHealthText;
+
+    private Health localPlayerHealth;
 
     private void Awake()
     {
@@ -27,26 +35,57 @@ public class GameUIManager : MonoBehaviour
         {
             quitPanel.SetActive(false);
         }
-        else
+    }
+
+    private void OnDestroy()
+    {
+        if (localPlayerHealth != null)
         {
-            Debug.LogError("[GameUIManager] Quit Panel is not assigned in the inspector!");
+            localPlayerHealth.OnHealthChanged -= UpdateHUDHealth;
         }
     }
     
+    // ============================================
+    //  HEALTH UI
+    // ============================================
+    public void RegisterLocalPlayerHealth(Health playerHealth)
+    {
+        localPlayerHealth = playerHealth;
+        if (localPlayerHealth != null)
+        {
+            localPlayerHealth.OnHealthChanged += UpdateHUDHealth;
+            UpdateHUDHealth(localPlayerHealth.CurrentHealth.Value, localPlayerHealth.MaxHealth.Value);
+        }
+    }
+
+    private void UpdateHUDHealth(int currentHealth, int maxHealth)
+    {
+        if (hudHealthSlider != null)
+        {
+            if (maxHealth > 0)
+            {
+                hudHealthSlider.value = (float)currentHealth / maxHealth;
+            }
+        }
+        if (hudHealthText != null)
+        {
+            hudHealthText.text = $"HP : {currentHealth} / {maxHealth}";
+        }
+    }
+
+    // ============================================
+    //  QUIT MENU
+    // ============================================
     public void OnToggleQuitMenu(InputAction.CallbackContext context)
     {
-        if (context.performed)
+        if (context.performed && quitPanel != null)
         {
-            if (quitPanel != null)
-            {
-                quitPanel.SetActive(!quitPanel.activeSelf);
-            }
+            quitPanel.SetActive(!quitPanel.activeSelf);
         }
     }
 
     public void OnLogoutButtonClicked()
     {
-
         if (NetworkManager.Singleton != null)
         {
             NetworkManager.Singleton.Shutdown();
@@ -68,7 +107,6 @@ public class GameUIManager : MonoBehaviour
 
     public void OnQuitGameButtonClicked()
     {
-
         if (NetworkManager.Singleton != null)
         {
             NetworkManager.Singleton.Shutdown();

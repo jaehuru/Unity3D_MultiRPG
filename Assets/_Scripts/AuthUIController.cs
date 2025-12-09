@@ -98,7 +98,7 @@ public class AuthUIController : MonoBehaviour
     
     private void OnAuthServiceSuccess()
     {
-                ShowRoleSelectionPanel();
+        ShowRoleSelectionPanel();
     }
     
     private void HandleClientDisconnect(ulong clientId)
@@ -134,9 +134,15 @@ public class AuthUIController : MonoBehaviour
         if (AuthService.Instance != null)
         {
             AuthService.Instance.RegisterUser(username, email, password, (success, message) => {
-                if (registerStatusText != null) registerStatusText.text = message;
-    
-                else Debug.LogError("[AuthUIController] Registration failed callback: " + message);
+                if (registerStatusText != null)
+                {
+                    registerStatusText.text = message;
+                }
+
+                if (!success)
+                {
+                    Debug.LogError("[AuthUIController] Registration failed callback: " + message);
+                }
             });
         }
         else Debug.LogError("[AuthUIController] AuthService.Instance is null for registration.");
@@ -158,10 +164,17 @@ public class AuthUIController : MonoBehaviour
         
         if (AuthService.Instance != null)
         {
-            AuthService.Instance.LoginUser(username, password, (success, message) => {
-                if (loginStatusText != null) loginStatusText.text = message;
-    
-                else Debug.LogError("[AuthUIController] Login failed callback: " + message);
+            AuthService.Instance.LoginUser(username, password, (success, message) => 
+            {
+                if (loginStatusText != null)
+                {
+                    loginStatusText.text = message;
+                }
+
+                if (!success)
+                {
+                    Debug.LogError("[AuthUIController] Login failed callback: " + message);
+                }
             });
         }
         else Debug.LogError("[AuthUIController] AuthService.Instance is null for login.");
