@@ -140,7 +140,7 @@ public class AuthService : MonoBehaviour
     {
         PlayerPrefs.SetString(JWT_TOKEN_KEY, token);
         PlayerPrefs.Save();
-            }
+    }
 
     public string GetStoredToken()
     {
@@ -156,7 +156,7 @@ public class AuthService : MonoBehaviour
         PlayerPrefs.DeleteKey(JWT_TOKEN_KEY);
         PlayerPrefs.Save();
         _jwtToken = "";
-            }
+    }
 
     public string GetCurrentToken()
     {
@@ -170,7 +170,7 @@ public class AuthService : MonoBehaviour
     public void InvalidateToken()
     {
         ClearStoredToken();
-            }
+    }
 }
     
 

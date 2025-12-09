@@ -4,19 +4,37 @@ using UnityEngine.AI;
 using UnityEngine.InputSystem;
 using TMPro;
 using Unity.Collections;
+using UnityEngine.UI;
 
 [RequireComponent(typeof(NavMeshAgent))]
+[RequireComponent(typeof(Health))]
 public class PlayerController : NetworkBehaviour 
 { 
-    [SerializeField] private TMP_Text playerNameText;
     private NavMeshAgent agent; 
+    private Health health; 
     private readonly NetworkVariable<Vector3> _networkDestination = new(writePerm: NetworkVariableWritePermission.Server);
     private readonly NetworkVariable<FixedString32Bytes> networkPlayerName = new(writePerm: NetworkVariableWritePermission.Server);
+    
+    // --- World Space UI ---
+    [Header("World Space UI")]
+    [SerializeField] private TMP_Text playerNameText;
+    [SerializeField] private Slider playerHealthSlider;
+    [SerializeField] private Canvas worldSpaceUICanvas;
+    // ---
 
     void Awake()
     {
         agent = GetComponent<NavMeshAgent>();
+        health = GetComponent<Health>();
     } 
+
+    void Start()
+    {
+        if (worldSpaceUICanvas != null)
+        {
+            worldSpaceUICanvas.worldCamera = Camera.main;
+        }
+    }
 
     public override void OnNetworkSpawn()
     {
@@ -37,14 +55,15 @@ public class PlayerController : NetworkBehaviour
 
         if (IsOwner)
         {
-            // 로컬 플레이어일 경우, 자신의 Health 컴포넌트를 UI 매니저에 등록
-            Health health = GetComponent<Health>();
             if (health != null && GameUIManager.Instance != null)
             {
                 GameUIManager.Instance.RegisterLocalPlayerHealth(health);
             }
         }
-  
+        
+        health.OnHealthChanged += UpdateWorldHealthBar;
+        UpdateWorldHealthBar(health.CurrentHealth.Value, health.MaxHealth.Value);
+
         networkPlayerName.OnValueChanged += OnPlayerNameChanged;
         OnPlayerNameChanged(default, networkPlayerName.Value); 
         _networkDestination.OnValueChanged += OnDestinationChanged;
@@ -55,8 +74,16 @@ public class PlayerController : NetworkBehaviour
         base.OnNetworkDespawn();
         _networkDestination.OnValueChanged -= OnDestinationChanged;
         networkPlayerName.OnValueChanged -= OnPlayerNameChanged;
+        
+        if (health != null)
+        {
+            health.OnHealthChanged -= UpdateWorldHealthBar;
+        }
     }
-
+    
+    // ============================================
+    // World Space UI Methods
+    // ============================================
     private void OnPlayerNameChanged(FixedString32Bytes previousValue, FixedString32Bytes newValue)
     {
         if (playerNameText != null)
@@ -64,11 +91,32 @@ public class PlayerController : NetworkBehaviour
             playerNameText.text = newValue.ToString();
         }
     }
+
+    private void UpdateWorldHealthBar(int currentHealth, int maxHealth)
+    {
+        if (playerHealthSlider != null)
+        {
+            if (maxHealth > 0)
+            {
+                playerHealthSlider.value = (float)currentHealth / maxHealth;
+            }
+        }
+    }
+
+    void LateUpdate()
+    {
+        if (worldSpaceUICanvas != null && Camera.main != null)
+        {
+            worldSpaceUICanvas.transform.position = transform.position + Vector3.up * 2.0f;
+            worldSpaceUICanvas.transform.rotation = Camera.main.transform.rotation;
+        }
+    }
+    // ============================================
     
     void Update() 
     { 
         if (IsOwner)
-        {
+        { 
             if (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame)
             {
                 var cam = Camera.main;
@@ -85,19 +133,6 @@ public class PlayerController : NetworkBehaviour
         }
     } 
 
-    void LateUpdate()
-    {
-        if (playerNameText != null)
-        {
-            playerNameText.transform.position = transform.position + Vector3.up * 2.0f;
-            
-            if (Camera.main != null)
-            {
-                playerNameText.transform.rotation = Camera.main.transform.rotation; 
-            }
-        }
-    }
-
     private void OnDestinationChanged(Vector3 previousValue, Vector3 newValue)
     {
         if (!IsServer || agent == null || !agent.enabled) return;
@@ -105,9 +140,9 @@ public class PlayerController : NetworkBehaviour
         agent.SetDestination(newValue);
     }
 
-    [ServerRpc] void SubmitDestinationServerRpc(Vector3 destination) 
+    [ServerRpc] 
+    void SubmitDestinationServerRpc(Vector3 destination) 
     {
-
         _networkDestination.Value = destination; 
     } 
 }

@@ -42,7 +42,7 @@ public class GameNetworkManager : MonoBehaviour
         }
 
         NetworkManager.Singleton.ConnectionApprovalCallback = ConnectionApprovalCallback;
-        NetworkManager.Singleton.OnClientConnectedCallback += OnClientConnected;
+
         NetworkManager.Singleton.OnClientDisconnectCallback += OnClientDisconnected;
         
 #if UNITY_SERVER
@@ -105,7 +105,6 @@ public class GameNetworkManager : MonoBehaviour
         if (NetworkManager.Singleton.IsServer && connectedClientsData.TryGetValue(clientId, out ClientInfo info))
         {
             info.PlayerNetworkObject = networkObject;
-
         }
     }
 
@@ -114,7 +113,6 @@ public class GameNetworkManager : MonoBehaviour
         if (NetworkManager.Singleton.IsServer && connectedClientsData.ContainsKey(clientId))
         {
             connectedClientsData.Remove(clientId);
-
         }
     }
 
@@ -204,10 +202,6 @@ public class GameNetworkManager : MonoBehaviour
                 spawnPos = loadedPlayerData.position.ToVector3();
     
             }
-            else
-            {
-    
-            }
             // --- End Player Data Loading ---
 
             response.Approved = true;
@@ -216,7 +210,6 @@ public class GameNetworkManager : MonoBehaviour
             response.Rotation = Quaternion.identity;
             
             connectedClientsData[request.ClientNetworkId] = new ClientInfo { Uid = uid, JwtToken = jwtToken, PlayerSpawnPosition = spawnPos };
-
         }
         else
         {
@@ -227,15 +220,7 @@ public class GameNetworkManager : MonoBehaviour
         response.Pending = false;
     }
 
-    private void OnClientConnected(ulong clientId)
-    {
 
-        
-        if (!NetworkManager.Singleton.IsServer)
-        {
-            return;
-        }
-    }
     
     private async void OnClientDisconnected(ulong clientId)
     {
@@ -266,11 +251,7 @@ public class GameNetworkManager : MonoBehaviour
                 PlayerData dataToSave = new PlayerData(pos);
                 
                 bool saveSuccess = await PlayerServerDataService.Instance.SavePlayerDataAsync(jwtToken, dataToSave);
-                if (saveSuccess)
-                {
-        
-                }
-                else
+                if (!saveSuccess)
                 {
                     Debug.LogWarning($"[GNM] Failed to save data for uid {uid} on disconnect.");
                 }
@@ -320,7 +301,6 @@ public class GameNetworkManager : MonoBehaviour
         
         if (NetworkManager.Singleton.StartHost())
         {
-    
             NetworkManager.Singleton.SceneManager.OnLoadComplete += OnLoadCompleteHandler;
             NetworkManager.Singleton.SceneManager.LoadScene("GameScene", LoadSceneMode.Single);
         }
@@ -351,11 +331,7 @@ public class GameNetworkManager : MonoBehaviour
         }
         NetworkManager.Singleton.NetworkConfig.ConnectionData = System.Text.Encoding.UTF8.GetBytes(token);
         
-        if (NetworkManager.Singleton.StartClient())
-        {
-    
-        }
-        else
+        if (!NetworkManager.Singleton.StartClient())
         {
             Debug.LogError("[GNM] Failed to start client.");
         }
@@ -363,8 +339,6 @@ public class GameNetworkManager : MonoBehaviour
 
     public void StartServer()
     {
-
-
         if (NetworkManager.Singleton == null)
         {
             Debug.LogError("[GNM] NetworkManager.Singleton is null. Cannot start server.");
