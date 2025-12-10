@@ -9,6 +9,10 @@ public class GameNetworkManager : MonoBehaviour
 {
     [Header("Assign player prefab here (optional - will also register to NetworkManager)")]
     [SerializeField] private GameObject playerPrefab;
+    [Header("Assign enemy prefab here for testing")]
+    [SerializeField] private GameObject enemyPrefab;
+
+    private bool isEnemySpawned = false;
     
     public class ClientInfo 
     {
@@ -57,7 +61,31 @@ public class GameNetworkManager : MonoBehaviour
     {
         if (!NetworkManager.Singleton.IsServer) return;
 
-                
+        // 임시 적 스폰
+        if (clientId == NetworkManager.ServerClientId && !isEnemySpawned)
+        {
+            if (enemyPrefab != null)
+            {
+                GameObject enemyInstance = Instantiate(enemyPrefab, new Vector3(0, 2, 0), Quaternion.identity);
+                NetworkObject enemyNetworkObject = enemyInstance.GetComponent<NetworkObject>();
+                if (enemyNetworkObject != null)
+                {
+                    enemyNetworkObject.Spawn(true);
+                    isEnemySpawned = true;
+                    Debug.Log("[GNM] Enemy spawned by server.");
+                }
+                else
+                {
+                    Debug.LogError("[GNM] Enemy prefab is missing NetworkObject component.");
+                }
+            }
+            else
+            {
+                Debug.LogWarning("[GNM] Enemy prefab is not assigned. Cannot spawn enemy.");
+            }
+        }
+        
+        // Player spawn logic
         if (connectedClientsData.TryGetValue(clientId, out ClientInfo clientInfo))
         {
             if (clientInfo.PlayerNetworkObject != null)
@@ -88,7 +116,10 @@ public class GameNetworkManager : MonoBehaviour
         }
         else
         {
-            Debug.LogWarning($"[GNM] ClientInfo not found for client {clientId} in OnLoadCompleteHandler. Cannot spawn player.");
+            if (clientId != NetworkManager.ServerClientId)
+            {
+                Debug.LogWarning($"[GNM] ClientInfo not found for client {clientId} in OnLoadCompleteHandler. Cannot spawn player.");
+            }
         }
     }
     

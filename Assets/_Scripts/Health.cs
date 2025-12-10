@@ -1,11 +1,13 @@
 using Unity.Netcode;
 using System;
+using UnityEngine;
 
 public class Health : NetworkBehaviour
 {
-    // 네트워크 변수
     public NetworkVariable<int> MaxHealth { get; } = new NetworkVariable<int>(100);
     public NetworkVariable<int> CurrentHealth { get; } = new NetworkVariable<int>();
+    
+    [SerializeField] private GameObject damageNumberPrefab;
     
     public event Action<int, int> OnHealthChanged;
 
@@ -58,11 +60,20 @@ public class Health : NetworkBehaviour
         if (!IsServer) return;
         if (isDead) return;
 
+        int oldHealth = CurrentHealth.Value;
         CurrentHealth.Value = Math.Max(0, CurrentHealth.Value - damage);
+        int actualDamageTaken = oldHealth - CurrentHealth.Value;
+
+        if (actualDamageTaken > 0)
+        {
+            ShowDamageFeedbackClientRpc(actualDamageTaken);
+        }
 
         if (CurrentHealth.Value == 0)
         {
             isDead = true;
+            //TODO: 사망 처리
+            Debug.Log($"{gameObject.name} has died!");
         }
     }
     
@@ -72,5 +83,35 @@ public class Health : NetworkBehaviour
         if (isDead) return;
 
         CurrentHealth.Value = Math.Min(CurrentHealth.Value + amount, MaxHealth.Value);
+    }
+
+    [ClientRpc]
+    private void ShowDamageFeedbackClientRpc(int damageAmount)
+    {
+        if (damageNumberPrefab != null)
+        {
+            Vector3 spawnPosition = transform.position + Vector3.up * 1.5f; 
+            GameObject damageNumberGO = Instantiate(damageNumberPrefab, spawnPosition, Quaternion.identity);
+            
+            if (Camera.main != null)
+            {
+                damageNumberGO.transform.LookAt(Camera.main.transform);
+                damageNumberGO.transform.forward *= -1; 
+            }
+            
+            DamageNumber damageNumber = damageNumberGO.GetComponent<DamageNumber>();
+            if (damageNumber != null)
+            {
+                damageNumber.SetDamage(damageAmount);
+            }
+            else
+            {
+                Debug.LogWarning("DamageNumber prefab is missing DamageNumber script.");
+            }
+        }
+        else
+        {
+            Debug.LogWarning("DamageNumber prefab is not assigned in Health.cs.");
+        }
     }
 }

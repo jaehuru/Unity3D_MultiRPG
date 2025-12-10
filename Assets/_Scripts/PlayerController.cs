@@ -15,12 +15,16 @@ public class PlayerController : NetworkBehaviour
     private readonly NetworkVariable<Vector3> _networkDestination = new(writePerm: NetworkVariableWritePermission.Server);
     private readonly NetworkVariable<FixedString32Bytes> networkPlayerName = new(writePerm: NetworkVariableWritePermission.Server);
     
+    // --- Combat ---
+    [Header("Combat Settings")]
+    [SerializeField] private float attackRange = 2f;
+    [SerializeField] private int attackDamage = 10;
+    
     // --- World Space UI ---
     [Header("World Space UI")]
     [SerializeField] private TMP_Text playerNameText;
     [SerializeField] private Slider playerHealthSlider;
     [SerializeField] private Canvas worldSpaceUICanvas;
-    // ---
 
     void Awake()
     {
@@ -117,6 +121,7 @@ public class PlayerController : NetworkBehaviour
     { 
         if (IsOwner)
         { 
+            // Left-click to move
             if (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame)
             {
                 var cam = Camera.main;
@@ -129,6 +134,12 @@ public class PlayerController : NetworkBehaviour
                         SubmitDestinationServerRpc(hit.point);
                     }
                 }
+            }
+            
+            // Right-click to attack
+            if (Mouse.current != null && Mouse.current.rightButton.wasPressedThisFrame)
+            {
+                AttackServerRpc();
             }
         }
     } 
@@ -144,5 +155,30 @@ public class PlayerController : NetworkBehaviour
     void SubmitDestinationServerRpc(Vector3 destination) 
     {
         _networkDestination.Value = destination; 
-    } 
+    }
+    
+    [ServerRpc]
+    private void AttackServerRpc()
+    {
+        Debug.Log($"[Server] Attack received from client {OwnerClientId}.");
+        
+        // Find all colliders in attack range
+        Collider[] hitColliders = Physics.OverlapSphere(transform.position, attackRange);
+        
+        foreach (var hitCollider in hitColliders)
+        {
+            // Don't hit ourselves
+            if (hitCollider.gameObject == gameObject)
+            {
+                continue;
+            }
+            
+            // Check if the collider has a Health component
+            if (hitCollider.TryGetComponent<Health>(out Health targetHealth))
+            {
+                Debug.Log($"[Server] Found target with health: {hitCollider.name}. Applying damage.");
+                targetHealth.TakeDamage(attackDamage);
+            }
+        }
+    }
 }

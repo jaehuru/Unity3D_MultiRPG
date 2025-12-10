@@ -542,6 +542,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerController
   ShowTopMostFoldoutHeaderGroup: 1
+  attackRange: 2
+  attackDamage: 10
   playerNameText: {fileID: 3955174043287942597}
   playerHealthSlider: {fileID: 6759620553275143500}
   worldSpaceUICanvas: {fileID: 4014363220223158576}
@@ -572,6 +574,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Health
   ShowTopMostFoldoutHeaderGroup: 1
+  damageNumberPrefab: {fileID: 3300571497489247501, guid: 64c3e69e4413a7448b17745c2f74503f, type: 3}
 --- !u!1 &6199043626794891183
 GameObject:
   m_ObjectHideFlags: 0
