@@ -1,7 +1,7 @@
 using TMPro;
 using UnityEngine;
 
-public class DamageNumber : MonoBehaviour
+public class FloatingText : MonoBehaviour
 {
     [SerializeField] private TMP_Text damageText;
     [SerializeField] private float lifeTime = 1f;

@@ -332,7 +332,8 @@ GameObject:
   - component: {fileID: 2448617834398086125}
   - component: {fileID: 6278118228954387857}
   - component: {fileID: -1214518383568250082}
-  - component: {fileID: 6656505768983968109}
+  - component: {fileID: 6315082360311995970}
+  - component: {fileID: 3361663481961363261}
   m_Layer: 6
   m_Name: Player
   m_TagString: Untagged
@@ -561,7 +562,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlayerServerSave
   ShowTopMostFoldoutHeaderGroup: 1
   autoSaveInterval: 10
---- !u!114 &6656505768983968109
+--- !u!114 &6315082360311995970
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -570,11 +571,24 @@ MonoBehaviour:
   m_GameObject: {fileID: 5624573649355495005}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 43182404baafa44e197a6cfb81d2b125, type: 3}
+  m_Script: {fileID: 11500000, guid: 79e1fb934e381fe42ae67cd644b8076d, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Health
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerStats
   ShowTopMostFoldoutHeaderGroup: 1
-  damageNumberPrefab: {fileID: 3300571497489247501, guid: 64c3e69e4413a7448b17745c2f74503f, type: 3}
+--- !u!114 &3361663481961363261
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5624573649355495005}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 304bca9c75a6b6c49b73c2719d2dde70, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CombatHandler
+  ShowTopMostFoldoutHeaderGroup: 1
+  floatingTextPrefab: {fileID: 3300571497489247501, guid: 64c3e69e4413a7448b17745c2f74503f, type: 3}
 --- !u!1 &6199043626794891183
 GameObject:
   m_ObjectHideFlags: 0
