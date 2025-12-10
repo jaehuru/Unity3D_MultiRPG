@@ -11,11 +11,11 @@
 **클라이언트-서버 개발 경험과 온라인 게임 아키텍처 이해**가 목적
 
 ## Development Environment
-- **OS**          : Windows
+- **OS**          : Windows/Mac
 - **IDE**         : JetBrains Rider
-- **Game Engine** : Unity 6.2 (6000.2.14f1)
-- **Game Server** : Unity Netcode
-- **Backend**     : Mock Account Server (Node.js + SQLite)
+- **Game Engine** : Unity 6.3 LTS (6000.3.0f1)
+- **Game Server** : Unity Netcode With GameObject (2.7.0)
+- **Backend**     : [Mock Account Server](https://github.com/jaehuru/RPG_Account_Server_Proto)
 
 ## Game Design
 - Unity Netcode 기반 **클라이언트-게임 서버** 구조
@@ -43,8 +43,10 @@
 ---
 
 ### Account Server (Mock Account Server, Node.js + SQLite)
-> *인증·계정 관리를 담당하는 모의 계정 서버*
-- [README](https://github.com/jaehuru/RPG_Account_Server_Proto/blob/main/README.md)
+> *계정 관리 및 인증, 테스트용 Mock API 제공*
+- **Platform**     : Node.js 24.11.1(LTS)
+- **Database**     : SQLite
+
 
 
 
