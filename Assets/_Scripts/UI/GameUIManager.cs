@@ -17,7 +17,7 @@ public class GameUIManager : MonoBehaviour
     [SerializeField] private Slider hudHealthSlider;
     [SerializeField] private TextMeshProUGUI hudHealthText;
 
-    private Health localPlayerHealth;
+    private ICharacterStats localPlayerHealth;
 
     private void Awake()
     {
@@ -48,7 +48,7 @@ public class GameUIManager : MonoBehaviour
     // ============================================
     //  HEALTH UI
     // ============================================
-    public void RegisterLocalPlayerHealth(Health playerHealth)
+    public void RegisterLocalPlayerHealth(ICharacterStats playerHealth)
     {
         localPlayerHealth = playerHealth;
         if (localPlayerHealth != null)

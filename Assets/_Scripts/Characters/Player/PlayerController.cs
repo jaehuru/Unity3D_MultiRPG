@@ -7,11 +7,11 @@ using Unity.Collections;
 using UnityEngine.UI;
 
 [RequireComponent(typeof(NavMeshAgent))]
-[RequireComponent(typeof(Health))]
+[RequireComponent(typeof(PlayerStats))]
 public class PlayerController : NetworkBehaviour 
 { 
     private NavMeshAgent agent; 
-    private Health health; 
+    private ICharacterStats characterStats; 
     private readonly NetworkVariable<Vector3> _networkDestination = new(writePerm: NetworkVariableWritePermission.Server);
     private readonly NetworkVariable<FixedString32Bytes> networkPlayerName = new(writePerm: NetworkVariableWritePermission.Server);
     
@@ -29,7 +29,7 @@ public class PlayerController : NetworkBehaviour
     void Awake()
     {
         agent = GetComponent<NavMeshAgent>();
-        health = GetComponent<Health>();
+        characterStats = GetComponent<ICharacterStats>();
     } 
 
     void Start()
@@ -59,14 +59,14 @@ public class PlayerController : NetworkBehaviour
 
         if (IsOwner)
         {
-            if (health != null && GameUIManager.Instance != null)
+            if (characterStats != null && GameUIManager.Instance != null)
             {
-                GameUIManager.Instance.RegisterLocalPlayerHealth(health);
+                GameUIManager.Instance.RegisterLocalPlayerHealth(characterStats);
             }
         }
         
-        health.OnHealthChanged += UpdateWorldHealthBar;
-        UpdateWorldHealthBar(health.CurrentHealth.Value, health.MaxHealth.Value);
+        characterStats.OnHealthChanged += UpdateWorldHealthBar;
+        UpdateWorldHealthBar(characterStats.CurrentHealth.Value, characterStats.MaxHealth.Value);
 
         networkPlayerName.OnValueChanged += OnPlayerNameChanged;
         OnPlayerNameChanged(default, networkPlayerName.Value); 
@@ -79,9 +79,9 @@ public class PlayerController : NetworkBehaviour
         _networkDestination.OnValueChanged -= OnDestinationChanged;
         networkPlayerName.OnValueChanged -= OnPlayerNameChanged;
         
-        if (health != null)
+        if (characterStats != null)
         {
-            health.OnHealthChanged -= UpdateWorldHealthBar;
+            characterStats.OnHealthChanged -= UpdateWorldHealthBar;
         }
     }
     
@@ -173,11 +173,11 @@ public class PlayerController : NetworkBehaviour
                 continue;
             }
             
-            // Check if the collider has a Health component
-            if (hitCollider.TryGetComponent<Health>(out Health targetHealth))
+            // Check if the collider has an ICombatant component
+            if (hitCollider.TryGetComponent<ICombatant>(out ICombatant targetCombatant))
             {
-                Debug.Log($"[Server] Found target with health: {hitCollider.name}. Applying damage.");
-                targetHealth.TakeDamage(attackDamage);
+                Debug.Log($"[Server] Found target with ICombatant: {hitCollider.name}. Applying damage.");
+                targetCombatant.TakeDamage(attackDamage);
             }
         }
     }
