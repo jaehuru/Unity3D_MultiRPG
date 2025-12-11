@@ -5,7 +5,7 @@
 /// </summary>
 public class EnemyStats : BaseCharacterStats
 {
-    // Enemy-specific stats can be added here.
+    // TODO: Enemy-specific stats can be added here.
     // For example:
     // public NetworkVariable<int> Bounty { get; } = new NetworkVariable<int>(10);
 }

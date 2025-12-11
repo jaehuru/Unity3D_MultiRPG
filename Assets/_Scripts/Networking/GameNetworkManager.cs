@@ -61,7 +61,8 @@ public class GameNetworkManager : MonoBehaviour
     {
         if (!NetworkManager.Singleton.IsServer) return;
 
-        // 임시 적 스폰
+        // Temporary enemy spawn
+        // TODO : Enemy 스폰 시스템 개선
         if (clientId == NetworkManager.ServerClientId && !isEnemySpawned)
         {
             if (enemyPrefab != null)
@@ -85,7 +86,7 @@ public class GameNetworkManager : MonoBehaviour
             }
         }
         
-        // Player spawn logic
+        // Player spawn
         if (connectedClientsData.TryGetValue(clientId, out ClientInfo clientInfo))
         {
             if (clientInfo.PlayerNetworkObject != null)
