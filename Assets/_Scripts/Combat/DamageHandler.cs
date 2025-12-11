@@ -2,7 +2,7 @@ using Unity.Netcode;
 using UnityEngine;
 
 [RequireComponent(typeof(BaseCharacterStats))]
-public class CombatHandler : NetworkBehaviour, ICombatant
+public class DamageHandler : NetworkBehaviour, IDamageable
 {
     [SerializeField] private GameObject floatingTextPrefab;
     

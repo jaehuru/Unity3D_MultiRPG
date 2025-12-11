@@ -6,9 +6,9 @@ using System.Collections;
 using UnityEngine.UI;
 using TMPro;
 
-public class GameUIManager : MonoBehaviour
+public class HUDUIManager : MonoBehaviour
 {
-    public static GameUIManager Instance { get; private set; }
+    public static HUDUIManager Instance { get; private set; }
 
     [Header("UI Panels")]
     [SerializeField] private GameObject quitPanel;

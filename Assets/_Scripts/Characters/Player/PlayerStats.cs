@@ -5,7 +5,7 @@
 /// </summary>
 public class PlayerStats : BaseCharacterStats
 {
-    // Player-specific stats can be added here.
+    // TODO: Player-specific stats can be added here.
     // For example:
     // public NetworkVariable<int> Experience { get; } = new NetworkVariable<int>(0);
 }
