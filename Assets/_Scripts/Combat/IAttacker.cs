@@ -1,3 +1,4 @@
+using Unity.Netcode;
 using UnityEngine;
 
 /// <summary>
@@ -7,7 +8,7 @@ using UnityEngine;
 public interface IAttacker
 {
 
-    void PerformAttack(GameObject target);
+    void PerformAttack(NetworkObjectReference targetNetworkObjectRef);
     
     // 향후 스킬 사용이나 다른 공격 유형을 위한 메서드를 추가
     // void PerformSkill(SkillType skill, GameObject target);
