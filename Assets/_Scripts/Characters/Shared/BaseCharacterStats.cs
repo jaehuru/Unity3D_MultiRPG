@@ -1,6 +1,5 @@
 using Unity.Netcode;
 using System;
-using UnityEngine;
 
 
 public abstract class BaseCharacterStats : NetworkBehaviour, ICharacterStats

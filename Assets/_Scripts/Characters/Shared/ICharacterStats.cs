@@ -1,5 +1,6 @@
 using Unity.Netcode;
 using System;
+
 /// <summary>
 /// 스탯 데이터 관련 인터페이스
 /// </summary>
