@@ -2,9 +2,8 @@ using System;
 using Unity.Netcode;
 using UnityEngine;
 using Unity.Collections;
-using System.Collections; // Coroutine 사용을 위해 추가
-using UnityEngine.AI; 
-
+using System.Collections;
+using UnityEngine.AI;
 
 [RequireComponent(typeof(DamageHandler))]
 [RequireComponent(typeof(AttackHandler))]
@@ -17,32 +16,31 @@ public class Enemy : NetworkBehaviour, IWorldSpaceUIProvider
     [Header("References")]
     [SerializeField] private EnemyStats enemyStats;
     private DamageHandler _damageHandler;
-    private UnityEngine.AI.NavMeshAgent _agent;
+    private NavMeshAgent _agent;
+    private IAttacker _myAttackerComponent;
 
     [Header("AI Settings")]
     [SerializeField] private float attackInterval = 2f;
-    [SerializeField] private float chaseRange = 5f; // 플레이어 추적 시작 및 중지 범위
-    [SerializeField] private float stoppingDistance = 1.5f; // 공격을 위해 멈추는 거리 (NavMeshAgent stoppingDistance와 일치)
-    [SerializeField] private float patrolRadius = 3f; // 홈 포지션 주변 순찰 반경
-    [SerializeField] private float returnHomeDistance = 5f; // 이 거리 이상 멀어지면 홈으로 복귀
-    [SerializeField] private float patrolWaitTime = 2f; // 순찰 지점 도달 후 대기 시간
+    [SerializeField] private float chaseRange = 5f;
+    [SerializeField] private float patrolStoppingDistance = 0.5f;
+    [SerializeField] private float patrolRadius = 5f;
+    [SerializeField] private float returnHomeDistance = 10f;
+    [SerializeField] private float patrolWaitTime = 2f;
 
     private float _attackTimer;
     private Vector3 _homePosition;
     private Quaternion _homeRotation;
-    private AiState _currentState = AiState.Patrol; // 초기 상태는 순찰 또는 Idle
+    private AiState _currentState = AiState.Idle;
     private Coroutine _patrolCoroutine;
+    private bool _isTransitioning;
 
     private readonly NetworkVariable<FixedString32Bytes> networkEnemyName = new(writePerm: NetworkVariableWritePermission.Server);
-    private IAttacker _myAttackerComponent;
-    
-    // AI 상태 정의
+
     private enum AiState { Idle, Patrol, Chase, ReturnHome }
 
     [Header("Respawn Settings")]
     [SerializeField] private float respawnDelay = 5f;
-    
-    // IWorldSpaceUIProvider 구현
+
     public GameObject WorldSpaceUIPrefab => EnemyWorldSpaceUIPrefab;
     public Transform UIFollowTransform => transform;
     public ICharacterStats CharacterStats => enemyStats;
@@ -52,9 +50,9 @@ public class Enemy : NetworkBehaviour, IWorldSpaceUIProvider
     {
         _myAttackerComponent = GetComponent<IAttacker>();
         _damageHandler = GetComponent<DamageHandler>();
-        _agent = GetComponent<UnityEngine.AI.NavMeshAgent>();
+        _agent = GetComponent<NavMeshAgent>();
         _attackTimer = attackInterval;
-        _agent.stoppingDistance = stoppingDistance; // NavMeshAgent의 정지 거리를 공격 정지 거리와 동기화
+        _agent.stoppingDistance = patrolStoppingDistance;
     }
 
     public override void OnNetworkSpawn()
@@ -63,23 +61,21 @@ public class Enemy : NetworkBehaviour, IWorldSpaceUIProvider
 
         if (IsServer)
         {
-            networkEnemyName.Value = "Goblin "; 
-            _agent.enabled = true; // 서버에서만 에이전트 활성화
-            _homePosition = transform.position; // 현재 위치를 홈으로 설정
-            _homeRotation = transform.rotation; // 현재 회전을 홈으로 설정
-            SetState(AiState.Patrol); // 초기 상태 설정
+            networkEnemyName.Value = "Goblin ";
+            _agent.enabled = true;
+            _homePosition = transform.position;
+            _homeRotation = transform.rotation;
+            SetState(AiState.Idle);
         }
         else
         {
-            _agent.enabled = false; // 클라이언트에서는 에이전트 비활성화
+            _agent.enabled = false;
         }
 
-        // 사망 이벤트 구독
         _damageHandler.OnDied += HandleEnemyDied;
         _damageHandler.OnRespawned += HandleEnemyRespawned;
 
-        // 초기 상태 설정
-        if (_damageHandler.IsDead()) // DamageHandler에 IsDead() getter가 필요함
+        if (_damageHandler.IsDead())
         {
             HandleEnemyDied();
         }
@@ -92,10 +88,9 @@ public class Enemy : NetworkBehaviour, IWorldSpaceUIProvider
         {
             if (EnemyWorldSpaceUIPrefab == null)
             {
-                Debug.LogError($"WorldSpaceUIPrefab이 Enemy '{gameObject.name}'에 할당되지 않았습니다. UI를 표시할 수 없습니다.");
+                Debug.LogError($"WorldSpaceUIPrefab이 Enemy '{gameObject.name}'에 할당되지 않았습니다.");
                 return;
             }
-            
             WorldSpaceUIManager.Instance.RegisterUIProvider(this);
         }
     }
@@ -103,8 +98,6 @@ public class Enemy : NetworkBehaviour, IWorldSpaceUIProvider
     public override void OnNetworkDespawn()
     {
         base.OnNetworkDespawn();
-
-        // 사망 이벤트 구독 해제
         _damageHandler.OnDied -= HandleEnemyDied;
         _damageHandler.OnRespawned -= HandleEnemyRespawned;
 
@@ -118,7 +111,6 @@ public class Enemy : NetworkBehaviour, IWorldSpaceUIProvider
     {
         if (_currentState == newState) return;
 
-        // 이전 상태 정리 (필요시)
         if (_currentState == AiState.Patrol && _patrolCoroutine != null)
         {
             StopCoroutine(_patrolCoroutine);
@@ -126,9 +118,12 @@ public class Enemy : NetworkBehaviour, IWorldSpaceUIProvider
         }
 
         _currentState = newState;
-        // Debug.Log($"{gameObject.name} 상태 변경: {_currentState}");
-
-        // 새 상태 초기화 (필요시)
+        
+        if (_currentState != AiState.Idle)
+        {
+            _isTransitioning = false;
+        }
+        
         if (_currentState == AiState.Patrol)
         {
             StartPatrol();
@@ -141,17 +136,10 @@ public class Enemy : NetworkBehaviour, IWorldSpaceUIProvider
         {
             _agent.isStopped = true;
             _agent.enabled = false;
-            NetworkObject.gameObject.SetActive(false); // 서버에서 GameObject 비활성화 (모든 클라이언트에 동기화)
-            if (_patrolCoroutine != null) StopCoroutine(_patrolCoroutine); // 순찰 코루틴 중지
-            StartCoroutine(RespawnCoroutine());
-            Debug.Log($"{gameObject.name}이(가) 사망했습니다. {respawnDelay}초 후 리스폰됩니다.");
-        }
-        else // 클라이언트 로직 (시각적 처리)
-        {
-            // 클라이언트에서는 모델 렌더러/콜라이더 비활성화 등 시각적 처리
-            // GameObject 활성 상태는 서버에서 제어하므로 건드릴 필요 없음
-            // 예: GetComponent<Renderer>().enabled = false;
-            // 예: GetComponent<Collider>().enabled = false;
+            if (_patrolCoroutine != null) StopCoroutine(_patrolCoroutine);
+
+            GameNetworkManager.Instance.RespawnEnemy(NetworkObject, respawnDelay);
+            NetworkObject.gameObject.SetActive(false);
         }
     }
 
@@ -162,22 +150,12 @@ public class Enemy : NetworkBehaviour, IWorldSpaceUIProvider
             NetworkObject.gameObject.SetActive(true);
             _agent.enabled = true;
             _attackTimer = attackInterval;
-            SetState(AiState.Patrol); // 리스폰 후 순찰 상태로
-            Debug.Log($"{gameObject.name}이(가) 리스폰되었습니다.");
-        }
-        else // 클라이언트 로직 (시각적 처리)
-        {
-            // 클라이언트에서는 모델 렌더러/콜라이더 활성화 등 시각적 처리
-            // GameObject 활성 상태는 서버에서 제어하므로 건드릴 필요 없음
-            // 예: GetComponent<Renderer>().enabled = true;
-            // 예: GetComponent<Collider>().enabled = true;
+            SetState(AiState.Idle);
         }
     }
 
-    private System.Collections.IEnumerator RespawnCoroutine()
+    public void Respawn()
     {
-        yield return new WaitForSeconds(respawnDelay);
-
         if (IsServer)
         {
             _damageHandler.ResetDeathState();
@@ -190,21 +168,24 @@ public class Enemy : NetworkBehaviour, IWorldSpaceUIProvider
         if (!IsServer || _damageHandler.IsDead()) return;
 
         _attackTimer -= Time.deltaTime;
-        
+
         GameObject nearestPlayer = FindNearestPlayer();
         float distanceToHome = Vector3.Distance(transform.position, _homePosition);
 
         switch (_currentState)
         {
             case AiState.Idle:
+                if (!_isTransitioning)
+                {
+                    StartCoroutine(TransitionToPatrol());
+                }
+                break;
+                
             case AiState.Patrol:
                 if (nearestPlayer != null && Vector3.Distance(transform.position, nearestPlayer.transform.position) <= chaseRange)
                 {
                     SetState(AiState.Chase);
-                    break;
                 }
-                
-                // 순찰 로직은 PatrolWander 코루틴에서 처리
                 break;
 
             case AiState.Chase:
@@ -217,26 +198,21 @@ public class Enemy : NetworkBehaviour, IWorldSpaceUIProvider
                 }
 
                 float distanceToPlayer = Vector3.Distance(transform.position, nearestPlayer.transform.position);
-                if (distanceToPlayer <= _agent.stoppingDistance) // 공격 범위 내
+                float attackRange = _myAttackerComponent?.AttackRange ?? patrolStoppingDistance;
+
+                if (distanceToPlayer <= attackRange)
                 {
                     _agent.isStopped = true;
                     if (_attackTimer <= 0f)
                     {
-                        if (nearestPlayer.TryGetComponent<NetworkObject>(out NetworkObject targetNetworkObject))
+                        if (nearestPlayer.TryGetComponent<NetworkObject>(out var targetNetworkObject))
                         {
-                            if (_myAttackerComponent != null)
-                            {
-                                _myAttackerComponent.PerformAttack(new NetworkObjectReference(targetNetworkObject));
-                            }
-                            else
-                            {
-                                Debug.LogError($"Enemy '{gameObject.name}' does not have an IAttacker component (AttackHandler).");
-                            }
+                            _myAttackerComponent.PerformAttack(new NetworkObjectReference(targetNetworkObject));
                         }
                         _attackTimer = attackInterval;
                     }
                 }
-                else // 공격 범위 밖, 추적 계속
+                else
                 {
                     _agent.isStopped = false;
                     _agent.SetDestination(nearestPlayer.transform.position);
@@ -244,26 +220,26 @@ public class Enemy : NetworkBehaviour, IWorldSpaceUIProvider
                 break;
 
             case AiState.ReturnHome:
-                _agent.SetDestination(_homePosition); // 홈으로 돌아가기
-                if (!_agent.pathPending && _agent.remainingDistance < 0.5f) // 홈 근처에 도달
+                _agent.SetDestination(_homePosition);
+                if (!_agent.pathPending && _agent.remainingDistance <= _agent.stoppingDistance)
                 {
                     _agent.isStopped = true;
-                    transform.rotation = _homeRotation; // 원래 방향으로 회전
-                    SetState(AiState.Patrol); // 순찰 상태로 전환
+                    transform.rotation = _homeRotation;
+                    SetState(AiState.Idle);
                 }
                 break;
         }
     }
-    
+
     private GameObject FindNearestPlayer()
     {
-        Collider[] hitColliders = Physics.OverlapSphere(transform.position, chaseRange); 
+        Collider[] hitColliders = Physics.OverlapSphere(transform.position, chaseRange);
         GameObject nearestPlayer = null;
         float minDistance = float.MaxValue;
 
         foreach (var hitCollider in hitColliders)
         {
-            if (hitCollider.gameObject.CompareTag("Player") && hitCollider.gameObject.TryGetComponent<Player>(out Player player))
+            if (hitCollider.gameObject.CompareTag("Player") && hitCollider.gameObject.TryGetComponent<Player>(out _))
             {
                 float distance = Vector3.Distance(transform.position, hitCollider.transform.position);
                 if (distance < minDistance)
@@ -274,6 +250,13 @@ public class Enemy : NetworkBehaviour, IWorldSpaceUIProvider
             }
         }
         return nearestPlayer;
+    }
+    
+    private IEnumerator TransitionToPatrol()
+    {
+        _isTransitioning = true;
+        yield return null;
+        SetState(AiState.Patrol);
     }
 
     private void StartPatrol()
@@ -286,23 +269,33 @@ public class Enemy : NetworkBehaviour, IWorldSpaceUIProvider
     {
         while (_currentState == AiState.Patrol)
         {
-            Debug.Log($"{gameObject.name}: 순찰 시작 - 현재 상태: {_currentState}");
+            _agent.isStopped = false;
             Vector3 randomPoint = _homePosition + UnityEngine.Random.insideUnitSphere * patrolRadius;
-            NavMeshHit hit;
-            if (NavMesh.SamplePosition(randomPoint, out hit, patrolRadius, NavMesh.AllAreas))
+            if (NavMesh.SamplePosition(randomPoint, out var hit, patrolRadius, NavMesh.AllAreas))
             {
                 _agent.SetDestination(hit.position);
-                Debug.Log($"{gameObject.name}: 순찰 목적지 설정: {hit.position}, 남은 거리: {_agent.remainingDistance:F2}");
-                yield return new WaitUntil(() => !_agent.pathPending && _agent.remainingDistance <= _agent.stoppingDistance + 0.1f); // 목적지 도착 대기
-                Debug.Log($"{gameObject.name}: 순찰 목적지 도착! 남은 거리: {_agent.remainingDistance:F2}");
+
+                yield return new WaitUntil(() => !_agent.pathPending);
+
+                if (_agent.remainingDistance > _agent.stoppingDistance)
+                {
+                    float timer = 0f;
+                    while (_agent.remainingDistance > _agent.stoppingDistance && !_agent.pathPending)
+                    {
+                        timer += Time.deltaTime;
+                        if (timer > 10f)
+                        {
+                            Debug.LogWarning($"{gameObject.name} patrol path timed out.");
+                            break;
+                        }
+                        yield return null;
+                    }
+                }
             }
-            else
-            {
-                Debug.LogWarning($"{gameObject.name}: NavMesh.SamplePosition 실패. 유효한 순찰 지점을 찾을 수 없습니다.");
-            }
-            yield return new WaitForSeconds(patrolWaitTime + UnityEngine.Random.Range(0f, 1f)); // 순찰 지점 사이의 대기 시간
+            
+            _agent.isStopped = true;
+            yield return new WaitForSeconds(patrolWaitTime + UnityEngine.Random.Range(0f, 1f));
         }
-        Debug.Log($"{gameObject.name}: PatrolWander 코루틴 종료.");
         _patrolCoroutine = null;
     }
 }

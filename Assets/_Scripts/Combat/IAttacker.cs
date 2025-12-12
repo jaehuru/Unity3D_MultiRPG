@@ -7,6 +7,7 @@ using UnityEngine;
 /// </summary>
 public interface IAttacker
 {
+    float AttackRange { get; }
 
     void PerformAttack(NetworkObjectReference targetNetworkObjectRef);
     

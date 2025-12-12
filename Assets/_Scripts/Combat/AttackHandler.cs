@@ -8,6 +8,8 @@ public class AttackHandler : NetworkBehaviour, IAttacker
     [SerializeField] private float attackRange;
     [SerializeField] private int attackDamage;
 
+    public float AttackRange => attackRange;
+
     private ICharacterStats _characterStats;
 
     private void Awake()
