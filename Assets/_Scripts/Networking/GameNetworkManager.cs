@@ -67,7 +67,7 @@ public class GameNetworkManager : MonoBehaviour
         {
             if (enemyPrefab != null)
             {
-                GameObject enemyInstance = Instantiate(enemyPrefab, new Vector3(0, 2, 0), Quaternion.identity);
+                GameObject enemyInstance = Instantiate(enemyPrefab, new Vector3(0, 0, 0), Quaternion.identity);
                 NetworkObject enemyNetworkObject = enemyInstance.GetComponent<NetworkObject>();
                 if (enemyNetworkObject != null)
                 {
@@ -305,6 +305,32 @@ public class GameNetworkManager : MonoBehaviour
     {
         clientInfo = null;
         return connectedClientsData.TryGetValue(clientId, out clientInfo);
+    }
+
+    public void RespawnEnemy(NetworkObject enemyNetworkObject, float delay)
+    {
+        StartCoroutine(RespawnEnemyCoroutine(enemyNetworkObject, delay));
+    }
+
+    private System.Collections.IEnumerator RespawnEnemyCoroutine(NetworkObject enemyNetworkObject, float delay)
+    {
+        yield return new WaitForSeconds(delay);
+
+        if (enemyNetworkObject != null && enemyNetworkObject.IsSpawned)
+        {
+            if (enemyNetworkObject.TryGetComponent<Enemy>(out Enemy enemy))
+            {
+                enemy.Respawn();
+            }
+            else
+            {
+                Debug.LogError($"[GNM] Could not find Enemy component on NetworkObject to respawn.");
+            }
+        }
+        else
+        {
+            Debug.LogWarning($"[GNM] Tried to respawn an enemy that no longer exists or is not spawned.");
+        }
     }
     
     // ============================================
