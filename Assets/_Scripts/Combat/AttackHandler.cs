@@ -8,6 +8,8 @@ public class AttackHandler : NetworkBehaviour, IAttacker
     [SerializeField] private float attackRange;
     [SerializeField] private int attackDamage;
 
+    public float AttackRange => attackRange;
+
     private ICharacterStats _characterStats;
 
     private void Awake()
@@ -61,21 +63,12 @@ public class AttackHandler : NetworkBehaviour, IAttacker
         }
     }
     
-    public void PerformAttack(GameObject target)
+    public void PerformAttack(NetworkObjectReference targetNetworkObjectRef)
     {
-        // IAttacker 인터페이스는 NetworkObjectReference를 직접 받을 수 없으므로,
-        // 이 메서드는 클라이언트에서 서버 RPC를 호출하기 위한 래퍼 역할
         // 클라이언트에서 호출될 것이므로, 서버 RPC로 다시 전달
-        if (!IsOwner) return;
+        if (!IsOwner) return; 
 
-        if (target.TryGetComponent<NetworkObject>(out NetworkObject targetNetworkObject))
-        {
-            PerformAttackServerRpc(targetNetworkObject);
-        }
-        else
-        {
-            Debug.LogError($"AttackHandler on {gameObject.name}: 공격 대상 {target.name}에 NetworkObject 컴포넌트가 없습니다. 서버 RPC를 호출할 수 없습니다.");
-        }
+        PerformAttackServerRpc(targetNetworkObjectRef);
     }
 
     // TODO: 향후 스킬 사용이나 다른 공격 유형을 위한 메서드를 추가
