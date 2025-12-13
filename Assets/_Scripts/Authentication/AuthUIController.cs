@@ -2,6 +2,7 @@ using UnityEngine;
 using TMPro; 
 using Unity.Netcode; 
 using UnityEngine.UI; 
+using Jae.Authentication;
 
 public class AuthUIController : MonoBehaviour
 {

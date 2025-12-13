@@ -1,0 +1,74 @@
+using UnityEngine;
+using Unity.Netcode;
+
+public class PlayerCamera : MonoBehaviour
+{
+    [Header("Target Settings")]
+    [Tooltip("The player character to follow")]
+    public PlayerCharacter targetPlayer;
+
+    [Tooltip("Transform on the player model for the 1st person camera position")]
+    public Transform firstPersonAnchor;
+    
+    [Tooltip("Transform on the player model for the 3rd person camera pivot")]
+    public Transform thirdPersonAnchor;
+
+    [Header("Camera Control")]
+    [SerializeField] private float mouseSensitivity = 100f;
+    [SerializeField] private Vector2 verticalClamp = new Vector2(-90f, 90f);
+    [SerializeField] private float thirdPersonDistance = 5.0f;
+    
+    private float _xRotation = 0f;
+    private bool _isFirstPerson = true;
+
+    void Start()
+    {
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
+    }
+
+    void LateUpdate()
+    {
+        if (targetPlayer == null)
+        {
+            if (NetworkManager.Singleton != null && NetworkManager.Singleton.LocalClient != null)
+            {
+                var localPlayerObj = NetworkManager.Singleton.LocalClient.PlayerObject;
+                if (localPlayerObj != null && localPlayerObj.TryGetComponent(out targetPlayer))
+                {
+                    firstPersonAnchor = targetPlayer.transform.Find("FirstPersonAnchor");
+                    thirdPersonAnchor = targetPlayer.transform.Find("ThirdPersonAnchor");
+                    if (firstPersonAnchor == null || thirdPersonAnchor == null)
+                    {
+                        Debug.LogError("PlayerCamera: FirstPersonAnchor or ThirdPersonAnchor not found as children of the player. Please create them.");
+                        enabled = false;
+                        return;
+                    }
+                }
+            }
+            return;
+        }
+        
+        Vector2 lookInput = targetPlayer.GetLookInput();
+        
+        _xRotation -= lookInput.y * mouseSensitivity * Time.deltaTime;
+        _xRotation = Mathf.Clamp(_xRotation, verticalClamp.x, verticalClamp.y);
+        
+        if (_isFirstPerson)
+        {
+            transform.position = firstPersonAnchor.position;
+            transform.rotation = Quaternion.Euler(_xRotation, targetPlayer.transform.eulerAngles.y, 0f);
+        }
+        else
+        {
+            thirdPersonAnchor.localRotation = Quaternion.Euler(_xRotation, 0, 0);
+            transform.position = thirdPersonAnchor.position - (thirdPersonAnchor.forward * thirdPersonDistance);
+            transform.LookAt(thirdPersonAnchor.position);
+        }
+    }
+    
+    public void SwitchView(bool isFirstPersonView)
+    {
+        _isFirstPerson = isFirstPersonView;
+    }
+}
