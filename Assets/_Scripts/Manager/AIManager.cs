@@ -277,16 +277,56 @@ public class AIManager : NetworkBehaviour
         }
     }
 
-    public void SetEnemyDead(ICombatant enemyCombatant)
-    {
-        if (!IsServer) return;
+        public void SetEnemyDead(ICombatant enemyCombatant)
 
-        if (_enemyAIDataMap.TryGetValue(enemyCombatant, out EnemyAIData aiData))
         {
-            if (aiData.Combatant.GetHealth().Current <= 0 && aiData.CurrentState != EnemyAIState.Dead)
+
+            if (!IsServer) return;
+
+    
+
+            if (_enemyAIDataMap.TryGetValue(enemyCombatant, out EnemyAIData aiData))
+
             {
-                SetAIState(aiData, EnemyAIState.Dead);
+
+                if (aiData.Combatant.GetHealth().Current <= 0 && aiData.CurrentState != EnemyAIState.Dead)
+
+                {
+
+                    SetAIState(aiData, EnemyAIState.Dead);
+
+                }
+
             }
+
         }
+
+    
+
+        public void SetEnemyAlive(ICombatant enemyCombatant)
+
+        {
+
+            if (!IsServer) return;
+
+    
+
+            if (_enemyAIDataMap.TryGetValue(enemyCombatant, out EnemyAIData aiData))
+
+            {
+
+                if (aiData.CurrentState == EnemyAIState.Dead)
+
+                {
+
+                    SetAIState(aiData, EnemyAIState.Idle);
+
+                }
+
+            }
+
+        }
+
     }
-}
+
+    

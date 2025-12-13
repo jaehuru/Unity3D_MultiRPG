@@ -50,9 +50,6 @@ public class PlayerCharacter : NetworkBehaviour,
     // --- Input Handling ---
     private Vector2 _moveInput;
     private Vector2 _lookInput;
-
-    // --- State ---
-    private bool _isDead = false;
     
     #region Input System Events (Called by PlayerInput component)
     public void OnMove(InputValue value)
@@ -122,9 +119,6 @@ public class PlayerCharacter : NetworkBehaviour,
     {
         agent.enabled = IsServer;
         
-        _currentHealth.OnValueChanged += OnHealthUpdated;
-        OnHealthUpdated(0, _currentHealth.Value);
-        
         if (IsServer)
         {
             if (PlayerSessionManager.Instance.TryGetClientInfo(OwnerClientId, out var clientInfo))
@@ -149,7 +143,7 @@ public class PlayerCharacter : NetworkBehaviour,
     public IRespawnPolicy GetRespawnPolicy() => new PlayerRespawnPolicy(this);
 
     // IAttackHandler
-    public bool CanNormalAttack() => !_isDead;
+    public bool CanNormalAttack() => true; // TODO: 이 로직은 상태(State) 기반으로 변경되어야 합니다.
     public void NormalAttack(AttackContext ctx)
     {
         if (!IsServer || !CanNormalAttack()) return;
@@ -289,7 +283,6 @@ public class PlayerCharacter : NetworkBehaviour,
     public override void OnNetworkDespawn()
     {
         base.OnNetworkDespawn();
-        _currentHealth.OnValueChanged -= OnHealthUpdated;
         
         if (IsClient && WorldSpaceUIManager.Instance != null)
         {
@@ -297,22 +290,9 @@ public class PlayerCharacter : NetworkBehaviour,
         }
     }
 
-    private void OnHealthUpdated(float previousValue, float newValue)
-    {
-        _isDead = newValue <= 0;
-
-        if (TryGetComponent<Collider>(out var col)) col.enabled = !_isDead;
-        if (TryGetComponent<Renderer>(out var rend)) rend.enabled = !_isDead;
-        
-        if(IsServer)
-        {
-            agent.enabled = !_isDead;
-        }
-    }
-
     private void Update()
     {
-        if (!IsOwner || _isDead) return;
+        if (!IsOwner) return;
 
         transform.Rotate(0, _lookInput.x * Time.deltaTime * rotationSpeed, 0);
 
