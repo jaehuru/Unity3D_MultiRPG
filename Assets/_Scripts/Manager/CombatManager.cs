@@ -1,7 +1,7 @@
+using Jae.Commom;
 using UnityEngine;
 using Unity.Netcode;
 using Jae.Common;
-using Jae.DataTypes;
 
 public class CombatManager : NetworkBehaviour
 {

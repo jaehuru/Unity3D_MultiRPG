@@ -1,15 +1,14 @@
 using UnityEngine;
-using UnityEngine.SceneManagement;
-using Unity.Netcode;
 using UnityEngine.InputSystem;
-using System.Collections;
 using UnityEngine.UI;
 using TMPro;
 using Jae.Common;
-using Jae.Authentication;
-public class HUDUIManager : MonoBehaviour
+using Jae.Manager;
+
+// This is a Controller. It manages the HUD view and sends signals to managers.
+public class HUDUIController : MonoBehaviour
 {
-    public static HUDUIManager Instance { get; private set; }
+    public static HUDUIController Instance { get; private set; }
 
     [Header("UI Panels")]
     [SerializeField] private GameObject quitPanel;
@@ -88,37 +87,12 @@ public class HUDUIManager : MonoBehaviour
 
     public void OnLogoutButtonClicked()
     {
-        if (NetworkManager.Singleton != null)
-        {
-            NetworkManager.Singleton.Shutdown();
-        }
-        
-        if (AuthService.Instance != null)
-        {
-            AuthService.Instance.ClearStoredToken();
-        }
-        
-        StartCoroutine(LoadMainSceneAfterFrame());
-    }
-
-    private IEnumerator LoadMainSceneAfterFrame()
-    {
-        yield return null;
-        SceneManager.LoadScene("MainScene");
+        GameManager.Instance.RequestLogout();
     }
 
     public void OnQuitGameButtonClicked()
     {
-        if (NetworkManager.Singleton != null)
-        {
-            NetworkManager.Singleton.Shutdown();
-        }
-
-#if UNITY_EDITOR
-        UnityEditor.EditorApplication.isPlaying = false;
-#else
-        Application.Quit();
-#endif
+        GameManager.Instance.QuitApplication();
     }
 
     public void OnCancelButtonClicked()

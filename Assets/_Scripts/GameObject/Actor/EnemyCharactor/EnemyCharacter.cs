@@ -1,13 +1,13 @@
 using System;
+using Jae.Commom;
 using UnityEngine;
 using Unity.Netcode;
 using Unity.Collections;
-using System.Collections;
 using UnityEngine.AI;
 using Jae.Common;
-using Jae.DataTypes;
 
 [RequireComponent(typeof(NavMeshAgent))]
+[RequireComponent(typeof(EnemyAIController))]
 public class EnemyCharacter : NetworkBehaviour,
     IActor,
     ICombatant,
@@ -33,19 +33,10 @@ public class EnemyCharacter : NetworkBehaviour,
     private readonly NetworkVariable<FixedString32Bytes> _networkEnemyName = new("Goblin", writePerm: NetworkVariableWritePermission.Server);
 
     [Header("Combat Settings")]
-    [SerializeField] private float attackRange = 1.5f;
     [SerializeField] private int attackDamage = 5;
 
     [Header("UI Settings")]
     [SerializeField] private GameObject EnemyWorldSpaceUIPrefab;
-
-    [Header("AI Settings")]
-    [SerializeField] private float attackInterval = 2f;
-    [SerializeField] private float chaseRange = 10f;
-    [SerializeField] private float patrolStoppingDistance = 0.5f;
-    [SerializeField] private float patrolRadius = 7f;
-    [SerializeField] private float returnHomeDistance = 15f;
-    [SerializeField] private float patrolWaitTime = 3f;
 
     [Header("Respawn Settings")]
     [SerializeField] private float respawnDelay = 5f;
@@ -57,7 +48,7 @@ public class EnemyCharacter : NetworkBehaviour,
     public float GetHealthRatio() => _maxHealth.Value > 0 ? _currentHealth.Value / _maxHealth.Value : 0f;
     public NetworkVariable<FixedString32Bytes> CharacterName => _networkEnemyName;
 
-#region Interface Implementations
+    #region Interface Implementations
 
     // ICombatant
     public IHealth GetHealth() => _enemyHealth;
@@ -92,7 +83,7 @@ public class EnemyCharacter : NetworkBehaviour,
     }
     public void AddModifier(StatModifier m) { throw new NotImplementedException(); }
     public void RemoveModifier(Guid id) { throw new NotImplementedException(); }
-    
+
     // IAttackHandler
     public bool CanNormalAttack() => true;
     public void NormalAttack(AttackContext ctx)
@@ -100,9 +91,9 @@ public class EnemyCharacter : NetworkBehaviour,
         if (!IsServer) return;
 
         if (!ctx.TargetNetworkObjectRef.TryGet(out var targetNetworkObject)) return;
-        
+
         var target = targetNetworkObject.gameObject;
-        
+
         if (target.TryGetComponent<ICombatant>(out var combatant))
         {
             CombatManager.Instance.ProcessAttack(this, combatant);
@@ -111,254 +102,103 @@ public class EnemyCharacter : NetworkBehaviour,
     public AttackType GetAttackType() => AttackType.Melee;
     public DamageType GetDefaultDamageType() => DamageType.Physical;
 
-        // ISpawnable
+    // ISpawnable
+    public void OnSpawn(ISpawnContext ctx)
+    {
+        _agent.enabled = IsServer;
 
-        public void OnSpawn(ISpawnContext ctx)
-
+        if (ctx != null && ctx.Point != null)
         {
-
-            _agent.enabled = IsServer;
-
-            
-
-            if (ctx != null && ctx.Point != null)
-
-            {
-
-                transform.position = ctx.Point.GetPosition();
-
-                transform.rotation = ctx.Point.GetRotation();
-
-            }
-
-    
-
-            _agent.stoppingDistance = patrolStoppingDistance;
-
-            
-
-            if (IsServer)
-
-            {
-
-                AIManager.Instance.RegisterAI(
-
-                    this, 
-
-                    _agent, 
-
-                    transform, 
-
-                    transform.position,
-
-                    transform.rotation,
-
-                    attackInterval,
-
-                    chaseRange,
-
-                    patrolStoppingDistance,
-
-                    patrolRadius,
-
-                    returnHomeDistance,
-
-                    patrolWaitTime
-
-                );
-
-            }
-
+            transform.position = ctx.Point.GetPosition();
+            transform.rotation = ctx.Point.GetRotation();
         }
-
-        
-
-        public IRespawnPolicy GetRespawnPolicy() => new EnemyRespawnPolicy(this);
-
-    
-
-    
-
-        // IMovable
-
-        public void Move(Vector3 direction, float deltaTime) { if(_agent.enabled) _agent.Move(direction * deltaTime); }
-
-        public void Teleport(Vector3 pos)
-
-        {
-
-            if (_agent.enabled) _agent.Warp(pos);
-
-            else transform.position = pos;
-
-        }
-
-    
-
-        // IAnimPlayable
-
-        public void Play(string state) { /* TODO: Connect to Animator */ }
-
-        public void CrossFade(string state, float duration) { /* TODO: Connect to Animator */ }
-
-    
-
-        // ISaveable
-
-        public SaveData SerializeForSave() { throw new NotImplementedException(); }
-
-        public void DeserializeFromSave(SaveData data) { throw new NotImplementedException(); }
-
-        #endregion
-
-    
-
-        #region Nested Classes (Health, Respawn Policy)
-
-        private class EnemyHealth : IHealth
-
-        {
-
-            private readonly EnemyCharacter _owner;
-
-            public float Current => _owner.GetStat(StatType.Health);
-
-            public float Max => _owner.GetStat(StatType.MaxHealth);
-
-    
-
-            public event Action<DamageEvent> OnDamaged;
-
-            public event Action OnDied;
-
-    
-
-            public EnemyHealth(EnemyCharacter owner)
-
-            {
-
-                _owner = owner;
-
-                _owner._currentHealth.OnValueChanged += (prev, curr) =>
-
-                {
-
-                    if (curr < prev)
-
-                        OnDamaged?.Invoke(new DamageEvent { Amount = prev - curr });
-
-                    if (curr <= 0 && prev > 0)
-
-                        OnDied?.Invoke();
-
-                };
-
-            }
-
-    
-
-            public void ApplyDamage(DamageEvent evt)
-
-            {
-
-                if (!_owner.IsServer) return;
-
-                var newHealth = Current - evt.Amount;
-
-                _owner.SetStat(StatType.Health, newHealth);
-
-            }
-
-    
-
-            public void Heal(float amount)
-
-            {
-
-                if (!_owner.IsServer) return;
-
-                var newHealth = Current + amount;
-
-                _owner.SetStat(StatType.Health, newHealth);
-
-            }
-
-        }
-
-    
-
-        private class EnemyRespawnPolicy : IRespawnPolicy
-
-        {
-
-            private readonly EnemyCharacter _owner;
-
-            public EnemyRespawnPolicy(EnemyCharacter owner) { _owner = owner; }
-
-            public bool ShouldRespawn(ISpawnable target) => true;
-
-            public TimeSpan GetRespawnDelay(ISpawnable target) => TimeSpan.FromSeconds(_owner.respawnDelay);
-
-            public ISpawnPoint SelectRespawnPoint(ISpawnable target)
-
-            {
-
-                return null;
-
-            }
-
-        }
-
-        #endregion
-
-    
-
-        private void Awake()
-
-        {
-
-            _agent = GetComponent<NavMeshAgent>();
-
-            _enemyHealth = new EnemyHealth(this);
-
-            
-
-            _statProvider = this;
-
-            _attackHandler = this;
-
-        }
-
-    
-
-        public override void OnNetworkSpawn()
-
-        {
-
-            base.OnNetworkSpawn();
-
-        }
-
-    
-
-        public override void OnNetworkDespawn()
-
-        {
-
-            base.OnNetworkDespawn();
-
-    
-
-            if (IsServer)
-
-            {
-
-                AIManager.Instance.UnregisterAI(this);
-
-            }
-
-        }
-
     }
 
-    
+    public IRespawnPolicy GetRespawnPolicy() => new EnemyRespawnPolicy(this);
+
+    // IMovable
+    public void Move(Vector3 direction, float deltaTime) { if(_agent.enabled) _agent.Move(direction * deltaTime); }
+    public void Teleport(Vector3 pos)
+    {
+        if (_agent.enabled) _agent.Warp(pos);
+        else transform.position = pos;
+    }
+
+    // IAnimPlayable
+    public void Play(string state) { /* TODO: Connect to Animator */ }
+    public void CrossFade(string state, float duration) { /* TODO: Connect to Animator */ }
+
+    // ISaveable
+    public SaveData SerializeForSave() { throw new NotImplementedException(); }
+    public void DeserializeFromSave(SaveData data) { throw new NotImplementedException(); }
+    #endregion
+
+    #region Nested Classes (Health, Respawn Policy)
+    private class EnemyHealth : IHealth
+    {
+        private readonly EnemyCharacter _owner;
+        public float Current => _owner.GetStat(StatType.Health);
+        public float Max => _owner.GetStat(StatType.MaxHealth);
+
+        public event Action<DamageEvent> OnDamaged;
+        public event Action OnDied;
+
+        public EnemyHealth(EnemyCharacter owner)
+        {
+            _owner = owner;
+            _owner._currentHealth.OnValueChanged += (prev, curr) =>
+            {
+                if (curr < prev)
+                    OnDamaged?.Invoke(new DamageEvent { Amount = prev - curr });
+                if (curr <= 0 && prev > 0)
+                    OnDied?.Invoke();
+            };
+        }
+
+        public void ApplyDamage(DamageEvent evt)
+        {
+            if (!_owner.IsServer) return;
+            var newHealth = Current - evt.Amount;
+            _owner.SetStat(StatType.Health, newHealth);
+        }
+
+        public void Heal(float amount)
+        {
+            if (!_owner.IsServer) return;
+            var newHealth = Current + amount;
+            _owner.SetStat(StatType.Health, newHealth);
+        }
+    }
+
+    private class EnemyRespawnPolicy : IRespawnPolicy
+    {
+        private readonly EnemyCharacter _owner;
+        public EnemyRespawnPolicy(EnemyCharacter owner) { _owner = owner; }
+        public bool ShouldRespawn(ISpawnable target) => true;
+        public TimeSpan GetRespawnDelay(ISpawnable target) => TimeSpan.FromSeconds(_owner.respawnDelay);
+        public ISpawnPoint SelectRespawnPoint(ISpawnable target)
+        {
+            return null;
+        }
+    }
+    #endregion
+
+    private void Awake()
+    {
+        _agent = GetComponent<NavMeshAgent>();
+        _enemyHealth = new EnemyHealth(this);
+
+        _statProvider = this;
+        _attackHandler = this;
+    }
+
+    public override void OnNetworkSpawn()
+    {
+        base.OnNetworkSpawn();
+    }
+
+    public override void OnNetworkDespawn()
+    {
+        base.OnNetworkDespawn();
+    }
+}

@@ -2,7 +2,7 @@ using UnityEngine;
 using Unity.Netcode;
 using UnityEngine.SceneManagement;
 using Jae.Manager;
-using Jae.Authentication;
+using Jae.Services;
 
 public class GameNetworkManager : MonoBehaviour
 {
@@ -93,13 +93,13 @@ public class GameNetworkManager : MonoBehaviour
             Debug.LogError("[GNM] NetworkManager.Singleton is null. Cannot start host.");
             return;
         }
-        if (AuthService.Instance == null)
+        if (AuthManager.Instance == null)
         {
-            Debug.LogError("[GNM] AuthService.Instance is null. Cannot start host.");
+            Debug.LogError("[GNM] AuthManager.Instance is null. Cannot start host.");
             return;
         }
 
-        string token = AuthService.Instance.GetCurrentToken();
+        string token = AuthManager.Instance.GetCurrentToken();
         if (string.IsNullOrEmpty(token))
         {
             Debug.LogError("[GNM] Cannot start host: User is not logged in (no JWT token).");
@@ -125,13 +125,13 @@ public class GameNetworkManager : MonoBehaviour
             Debug.LogError("[GNM] NetworkManager.Singleton is null. Cannot start client.");
             return;
         }
-        if (AuthService.Instance == null)
+        if (AuthManager.Instance == null)
         {
-            Debug.LogError("[GNM] AuthService.Instance is null. Cannot start client."); // Re-added check
+            Debug.LogError("[GNM] AuthManager.Instance is null. Cannot start client."); // Re-added check
             return;
         }
 
-        string token = AuthService.Instance.GetCurrentToken();
+        string token = AuthManager.Instance.GetCurrentToken();
         if (string.IsNullOrEmpty(token))
         {
             Debug.LogError("[GNM] Cannot start client: User is not logged in (no JWT token).");

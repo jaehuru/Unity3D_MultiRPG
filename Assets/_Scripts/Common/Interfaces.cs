@@ -1,4 +1,5 @@
 using System;
+using Jae.Commom;
 using UnityEngine;
 using Unity.Netcode;
 
@@ -64,9 +65,9 @@ namespace Jae.Common
     {
         float Current { get; }
         float Max { get; }
-        void ApplyDamage(DataTypes.DamageEvent evt);
+        void ApplyDamage(DamageEvent evt);
         void Heal(float amount);
-        event System.Action<DataTypes.DamageEvent> OnDamaged;
+        event System.Action<DamageEvent> OnDamaged;
         event System.Action OnDied;
     }
 
@@ -120,7 +121,7 @@ namespace Jae.Common
 
     public interface IDamageCalculator
     {
-        DataTypes.DamageResult Calculate(ICombatant attacker, ICombatant target, DamageContext ctx);
+        DamageResult Calculate(ICombatant attacker, ICombatant target, DamageContext ctx);
     }
 
     // Placeholder for HitValidationResult
@@ -130,17 +131,17 @@ namespace Jae.Common
     {
         void Activate();
         void Deactivate();
-        event System.Action<DataTypes.HitInfo> OnHitDetected;
+        event System.Action<HitInfo> OnHitDetected;
     }
 
     public interface IHitResolver
     {
-        HitValidationResult ValidateHit(DataTypes.HitInfo hit, ICombatant attacker);
+        HitValidationResult ValidateHit(HitInfo hit, ICombatant attacker);
     }
 
     public interface IDamagePipeline
     {
-        DataTypes.DamageEvent BuildDamageEvent(ICombatant attacker, ICombatant target, DataTypes.DamageResult result);
+        DamageEvent BuildDamageEvent(ICombatant attacker, ICombatant target, DamageResult result);
     }
 
     public interface IStatusController
@@ -191,7 +192,7 @@ namespace Jae.Common
 
     public interface IMoveAuthoritative
     {
-        void ServerApplyMovement(DataTypes.MovementSnapshot snap);
+        void ServerApplyMovement(MovementSnapshot snap);
     }
 
     // =====================================

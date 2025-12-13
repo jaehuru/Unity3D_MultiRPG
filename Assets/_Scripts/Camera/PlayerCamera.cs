@@ -4,8 +4,8 @@ using Unity.Netcode;
 public class PlayerCamera : MonoBehaviour
 {
     [Header("Target Settings")]
-    [Tooltip("The player character to follow")]
-    public PlayerCharacter targetPlayer;
+    [Tooltip("The player controller to follow")]
+    public PlayerController targetController;
 
     [Tooltip("Transform on the player model for the 1st person camera position")]
     public Transform firstPersonAnchor;
@@ -29,15 +29,15 @@ public class PlayerCamera : MonoBehaviour
 
     void LateUpdate()
     {
-        if (targetPlayer == null)
+        if (targetController == null)
         {
             if (NetworkManager.Singleton != null && NetworkManager.Singleton.LocalClient != null)
             {
                 var localPlayerObj = NetworkManager.Singleton.LocalClient.PlayerObject;
-                if (localPlayerObj != null && localPlayerObj.TryGetComponent(out targetPlayer))
+                if (localPlayerObj != null && localPlayerObj.TryGetComponent(out targetController))
                 {
-                    firstPersonAnchor = targetPlayer.transform.Find("FirstPersonAnchor");
-                    thirdPersonAnchor = targetPlayer.transform.Find("ThirdPersonAnchor");
+                    firstPersonAnchor = targetController.transform.Find("FirstPersonAnchor");
+                    thirdPersonAnchor = targetController.transform.Find("ThirdPersonAnchor");
                     if (firstPersonAnchor == null || thirdPersonAnchor == null)
                     {
                         Debug.LogError("PlayerCamera: FirstPersonAnchor or ThirdPersonAnchor not found as children of the player. Please create them.");
@@ -49,7 +49,7 @@ public class PlayerCamera : MonoBehaviour
             return;
         }
         
-        Vector2 lookInput = targetPlayer.GetLookInput();
+        Vector2 lookInput = targetController.GetLookInput();
         
         _xRotation -= lookInput.y * mouseSensitivity * Time.deltaTime;
         _xRotation = Mathf.Clamp(_xRotation, verticalClamp.x, verticalClamp.y);
@@ -57,7 +57,7 @@ public class PlayerCamera : MonoBehaviour
         if (_isFirstPerson)
         {
             transform.position = firstPersonAnchor.position;
-            transform.rotation = Quaternion.Euler(_xRotation, targetPlayer.transform.eulerAngles.y, 0f);
+            transform.rotation = Quaternion.Euler(_xRotation, targetController.transform.eulerAngles.y, 0f);
         }
         else
         {

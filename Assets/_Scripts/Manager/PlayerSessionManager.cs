@@ -4,13 +4,21 @@ using System.Collections.Generic;
 using System;
 using System.Text;
 using System.Threading.Tasks;
-using Jae.Authentication;
+using System.Collections;
+using Jae.Services;
 
 namespace Jae.Manager
 {
     public class PlayerSessionManager : NetworkBehaviour
     {
         public static PlayerSessionManager Instance { get; private set; }
+        
+        [Header("Service URLs")]
+        [SerializeField] private string authUrl = "http://localhost:3000/api/auth/";
+        [SerializeField] private string playerDataUrl = "http://localhost:3000/api/playerdata/";
+
+        private AuthService _authService;
+        private PlayerDataService _playerDataService;
 
         public class ClientInfo 
         {
@@ -31,6 +39,8 @@ namespace Jae.Manager
             else
             {
                 Instance = this;
+                _authService = new AuthService(authUrl);
+                _playerDataService = new PlayerDataService(playerDataUrl);
             }
         }
 
@@ -46,152 +56,118 @@ namespace Jae.Manager
             base.OnNetworkDespawn();
         }
         
-        public async void HandleConnectionApprovalCallback(NetworkManager.ConnectionApprovalRequest request, NetworkManager.ConnectionApprovalResponse response)
+        public void HandleConnectionApprovalCallback(NetworkManager.ConnectionApprovalRequest request, NetworkManager.ConnectionApprovalResponse response)
         {
-            var result = await HandleConnectionApproval(request);
-            response.Approved = result.Approved;
-            response.Reason = result.Reason;
-            response.CreatePlayerObject = false;
-            response.Position = result.Position;
-            response.Rotation = result.Rotation;
-            response.Pending = false;
-        }
-
-        public async void HandleClientDisconnected(ulong clientId)
-        {
-            await HandleClientDisconnect(clientId);
+            StartCoroutine(ConnectionApprovalCoroutine(request, response));
         }
         
-        private async Task<(bool Approved, string Reason, Vector3 Position, Quaternion Rotation)> HandleConnectionApproval(NetworkManager.ConnectionApprovalRequest request)
+        public void HandleClientDisconnected(ulong clientId)
         {
-            string jwtToken = "";
+            _ = SaveOnDisconnectAsync(clientId);
+        }
+
+        private IEnumerator ConnectionApprovalCoroutine(NetworkManager.ConnectionApprovalRequest request, NetworkManager.ConnectionApprovalResponse response)
+        {
+            response.Pending = true;
             
-            // Host
+            string jwtToken = "";
+            bool shouldProcess = true;
+
             if (request.ClientNetworkId == NetworkManager.ServerClientId && NetworkManager.Singleton.IsHost)
             {
-                if (AuthService.Instance == null)
-                {
-                    Debug.LogError("[PlayerSessionManager] AuthService.Instance is null. Cannot get token for host.");
-                    return (false, "Auth service unavailable for host.", Vector3.zero, Quaternion.identity);
-                }
-                jwtToken = AuthService.Instance.GetCurrentToken();
+                jwtToken = AuthManager.Instance.GetCurrentToken();
             }
-            else // Client
+            else
             {
-                try
-                {
-                    if (request.Payload != null && request.Payload.Length > 0)
-                    {
-                        jwtToken = Encoding.UTF8.GetString(request.Payload);
-                    }
-                }
+                try { jwtToken = Encoding.UTF8.GetString(request.Payload); }
                 catch (Exception ex)
                 {
-                    Debug.LogWarning($"[PlayerSessionManager] Failed to parse payload as JWT: {ex}");
-                    return (false, "Invalid payload format.", Vector3.zero, Quaternion.identity);
+                    response.Reason = $"Invalid payload format: {ex.Message}";
+                    shouldProcess = false;
                 }
             }
-
+            
             if (string.IsNullOrEmpty(jwtToken))
             {
-                Debug.LogWarning("[PlayerSessionManager] JWT token not provided in payload.");
-                return (false, "Authentication token required.", Vector3.zero, Quaternion.identity);
+                response.Reason = "Authentication token required.";
+                shouldProcess = false;
             }
-
-            if (ServerAuthService.Instance == null)
-            {
-                Debug.LogError("[PlayerSessionManager] ServerAuthService.Instance is null. Is it in the scene?");
-                return (false, "Server authentication service unavailable.", Vector3.zero, Quaternion.identity);
-            }
-
-            AuthValidationResult validationResult = await ServerAuthService.Instance.ValidateTokenAsync(jwtToken);
             
-            string uid = "unknown";
-            if (validationResult.IsValid)
+            if (!shouldProcess)
             {
-                uid = validationResult.UserId;
-
-                // 동일 ID 로그인 방지
-                foreach (var clientEntry in connectedClientsData.Values)
-                {
-                    if (clientEntry.Uid == uid)
-                    {
-                        Debug.LogWarning($"[PlayerSessionManager] User {uid} (client {request.ClientNetworkId}) is already connected. Blocking new connection.");
-                        return (false, "User already connected.", Vector3.zero, Quaternion.identity);
-                    }
-                }
-                
-                // Player Data Loading
-                if (PlayerServerDataService.Instance == null)
-                {
-                    Debug.LogError("[PlayerSessionManager] PlayerServerDataService.Instance is null. Is it in the scene?");
-                    return (false, "Player data service unavailable.", Vector3.zero, Quaternion.identity);
-                }
-
-                PlayerData loadedPlayerData = await PlayerServerDataService.Instance.LoadPlayerDataAsync(jwtToken);
-                Vector3 spawnPos = Vector3.zero;
-
-                if (loadedPlayerData != null && loadedPlayerData.position != null)
-                {
-                    spawnPos = loadedPlayerData.position.ToVector3();
-                }
-
-                connectedClientsData[request.ClientNetworkId] = new ClientInfo { Uid = uid, JwtToken = jwtToken, PlayerSpawnPosition = spawnPos };
-                
-                return (true, "", spawnPos, Quaternion.identity); // Approved
+                response.Approved = false;
+                response.Pending = false;
+                yield break;
             }
-            else
+            
+            Task<AuthValidationResult> validationTask = _authService.ValidateToken(jwtToken);
+            yield return new WaitUntil(() => validationTask.IsCompleted);
+            
+            if (validationTask.IsFaulted)
             {
-                Debug.LogWarning($"[PlayerSessionManager] JWT token validation failed for client {request.ClientNetworkId}: {validationResult.ErrorMessage}");
-                return (false, $"Authentication failed: {validationResult.ErrorMessage}", Vector3.zero, Quaternion.identity);
+                response.Approved = false;
+                response.Reason = "Authentication service error.";
+                response.Pending = false;
+                yield break;
             }
+            
+            AuthValidationResult validationResult = validationTask.Result;
+            
+            if (!validationResult.IsValid)
+            {
+                response.Approved = false;
+                response.Reason = $"Authentication failed: {validationResult.ErrorMessage}";
+                response.Pending = false;
+                yield break;
+            }
+            
+            string uid = validationResult.UserId;
+
+            foreach (var clientEntry in connectedClientsData.Values)
+            {
+                if (clientEntry.Uid == uid)
+                {
+                    response.Approved = false;
+                    response.Reason = "User already connected.";
+                    response.Pending = false;
+                    yield break;
+                }
+            }
+
+            Task<PlayerData> loadTask = _playerDataService.LoadPlayerData(jwtToken);
+            yield return new WaitUntil(() => loadTask.IsCompleted);
+            PlayerData loadedPlayerData = loadTask.Result;
+
+            Vector3 spawnPos = loadedPlayerData?.position.ToVector3() ?? Vector3.zero;
+
+            connectedClientsData[request.ClientNetworkId] = new ClientInfo { Uid = uid, JwtToken = jwtToken, PlayerSpawnPosition = spawnPos };
+            
+            response.Approved = true;
+            response.CreatePlayerObject = false;
+            response.Position = spawnPos;
+            response.Rotation = Quaternion.identity;
+            response.Pending = false;
         }
-
-        // --- Disconnect Logic ---
-        private async Task HandleClientDisconnect(ulong clientId)
+        
+        private async Task SaveOnDisconnectAsync(ulong clientId)
         {
-            if (!IsServer) return; // Should only run on server
+            if (!IsServer || !connectedClientsData.TryGetValue(clientId, out ClientInfo clientInfo)) return;
 
-            if (connectedClientsData.TryGetValue(clientId, out ClientInfo clientInfo))
-            {
-                if (clientInfo.PlayerNetworkObject != null)
-                {
-                    Vector3 pos = clientInfo.PlayerNetworkObject.transform.position;
-                    string jwtToken = clientInfo.JwtToken;
-                    string uid = clientInfo.Uid;
+            connectedClientsData.Remove(clientId);
 
-                    // Player Data Saving
-                    if (PlayerServerDataService.Instance == null)
-                    {
-                        Debug.LogError($"[PlayerSessionManager] PlayerServerDataService.Instance is null on disconnect for client {clientId}. Cannot save data.");
-                        connectedClientsData.Remove(clientId);
-                        return;
-                    }
-                    
-                    PlayerData dataToSave = new PlayerData(pos);
-                    
-                    bool saveSuccess = await PlayerServerDataService.Instance.SavePlayerDataAsync(jwtToken, dataToSave);
-                    if (!saveSuccess)
-                    {
-                        Debug.LogWarning($"[PlayerSessionManager] Failed to save data for uid {uid} on disconnect.");
-                    }
-                }
-                else
-                {
-                    Debug.LogWarning($"[PlayerSessionManager] Player NetworkObject not found for client {clientId}. Cannot save position.");
-                }
-                connectedClientsData.Remove(clientId);
-            }
-            else
+            if (clientInfo.PlayerNetworkObject != null)
             {
-                    Debug.LogWarning($"[PlayerSessionManager] ClientInfo not found for client {clientId} on disconnect.");
+                PlayerData dataToSave = new PlayerData(clientInfo.PlayerNetworkObject.transform.position);
+                bool saveSuccess = await _playerDataService.SavePlayerData(clientInfo.JwtToken, dataToSave);
+                if (!saveSuccess)
+                {
+                    Debug.LogWarning($"[PlayerSessionManager] Failed to save data for uid {clientInfo.Uid} on disconnect.");
+                }
             }
         }
         
-        // --- Client Data Access ---
         public bool TryGetClientInfo(ulong clientId, out ClientInfo clientInfo)
         {
-            clientInfo = null;
             return connectedClientsData.TryGetValue(clientId, out clientInfo);
         }
 
@@ -212,9 +188,24 @@ namespace Jae.Manager
             {
                 clientInfo.PlayerNetworkObject = playerNetworkObject;
             }
-            else
+        }
+        
+        public void RequestSavePosition(ulong clientId, Vector3 position)
+        {
+            if (!IsServer) return;
+            _ = SavePositionAsync(clientId, position);
+        }
+        
+        private async Task SavePositionAsync(ulong clientId, Vector3 position)
+        {
+            if (connectedClientsData.TryGetValue(clientId, out ClientInfo clientInfo))
             {
-                Debug.LogWarning($"[PlayerSessionManager] ClientInfo not found for client {clientId}. Cannot set player network object.");
+                PlayerData dataToSave = new PlayerData(position);
+                bool saveSuccess = await _playerDataService.SavePlayerData(clientInfo.JwtToken, dataToSave);
+                if (!saveSuccess)
+                {
+                    Debug.LogWarning($"[PlayerSessionManager] Failed to autosave position for uid {clientInfo.Uid}.");
+                }
             }
         }
     }

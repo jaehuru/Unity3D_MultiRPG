@@ -5,12 +5,13 @@ using UnityEngine.InputSystem;
 using Unity.Collections;
 using System;
 using System.Collections.Generic;
+using Jae.Commom;
 using Jae.Common;
-using Jae.DataTypes;
 using Jae.Manager;
 
 [RequireComponent(typeof(NavMeshAgent))]
 [RequireComponent(typeof(PlayerInput))]
+[RequireComponent(typeof(PlayerController))]
 public class PlayerCharacter : NetworkBehaviour,
     IActor,
     IInteractor,
@@ -26,8 +27,6 @@ public class PlayerCharacter : NetworkBehaviour,
     IAttackHandler,
     IMoveAuthoritative
 {
-    public Vector2 GetLookInput() => _lookInput;
-
     private NavMeshAgent agent;
     private readonly NetworkVariable<FixedString32Bytes> networkPlayerName = new(writePerm: NetworkVariableWritePermission.Server);
 
@@ -35,42 +34,12 @@ public class PlayerCharacter : NetworkBehaviour,
     private readonly NetworkVariable<float> _currentHealth = new(100f, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
     private readonly NetworkVariable<float> _maxHealth = new(100f, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
     
-    [Header("Combat Settings")]
-    [SerializeField] private float attackRange = 2f;
-    
     [Header("World Space UI")]
     [SerializeField] private GameObject playerWorldSpaceUIPrefab;
-
-    [Header("Movement Settings")]
-    [SerializeField] private float rotationSpeed = 120f;
 
     // --- Interfaces ---
     private IHealth _playerHealth;
     
-    // --- Input Handling ---
-    private Vector2 _moveInput;
-    private Vector2 _lookInput;
-    
-    #region Input System Events (Called by PlayerInput component)
-    public void OnMove(InputValue value)
-    {
-        if (!IsOwner) return;
-        _moveInput = value.Get<Vector2>();
-    }
-
-    public void OnLook(InputValue value)
-    {
-        if (!IsOwner) return;
-        _lookInput = value.Get<Vector2>();
-    }
-
-    public void OnAttack(InputValue value)
-    {
-        if (!IsOwner || !value.isPressed) return;
-        RequestAttackServerRpc();
-    }
-    #endregion
-
     #region Interface Implementations
     // IActor Implementation
     public string GetId() => OwnerClientId.ToString();
@@ -129,9 +98,9 @@ public class PlayerCharacter : NetworkBehaviour,
         
         if (IsOwner)
         {
-            if (HUDUIManager.Instance != null)
+            if (HUDUIController.Instance != null)
             {
-                HUDUIManager.Instance.RegisterLocalPlayerHealth(this);
+                HUDUIController.Instance.RegisterLocalPlayerHealth(this);
             }
         }
         
@@ -143,7 +112,7 @@ public class PlayerCharacter : NetworkBehaviour,
     public IRespawnPolicy GetRespawnPolicy() => new PlayerRespawnPolicy(this);
 
     // IAttackHandler
-    public bool CanNormalAttack() => true; // TODO: 이 로직은 상태(State) 기반으로 변경되어야 합니다.
+    public bool CanNormalAttack() => true; // TODO: This logic should be based on state
     public void NormalAttack(AttackContext ctx)
     {
         if (!IsServer || !CanNormalAttack()) return;
@@ -288,41 +257,5 @@ public class PlayerCharacter : NetworkBehaviour,
         {
             WorldSpaceUIManager.Instance.UnregisterUIProvider(NetworkObjectId);
         }
-    }
-
-    private void Update()
-    {
-        if (!IsOwner) return;
-
-        transform.Rotate(0, _lookInput.x * Time.deltaTime * rotationSpeed, 0);
-
-        var snapshot = new MovementSnapshot
-        {
-            MoveInput = _moveInput,
-            LookRotation = transform.rotation,
-            DeltaTime = Time.deltaTime
-        };
-        
-        if(MovementManager.Instance != null)
-        {
-            MovementManager.Instance.ServerMove_ServerRpc(snapshot);
-        }
-    }
-
-    [ServerRpc]
-    private void RequestAttackServerRpc()
-    {
-        NetworkObjectReference targetNetworkObjectRef = default; 
-        
-        RaycastHit hit;
-        if (Physics.Raycast(transform.position + Vector3.up * 0.5f, transform.forward, out hit, attackRange + 1f))
-        {
-            if (hit.collider.TryGetComponent<NetworkObject>(out var targetNetworkObject))
-            {
-                targetNetworkObjectRef = new NetworkObjectReference(targetNetworkObject);
-            }
-        }
-        
-        GetAttackHandler()?.NormalAttack(new AttackContext { TargetNetworkObjectRef = targetNetworkObjectRef });
     }
 }

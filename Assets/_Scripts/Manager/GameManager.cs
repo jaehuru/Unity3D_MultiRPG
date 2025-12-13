@@ -1,4 +1,6 @@
 using Unity.Netcode;
+using UnityEngine.SceneManagement;
+using System.Collections;
 
 namespace Jae.Manager
 {
@@ -15,21 +17,59 @@ namespace Jae.Manager
             else
             {
                 Instance = this;
+                DontDestroyOnLoad(gameObject);
             }
         }
 
         public override void OnNetworkSpawn()
         {
-            if (!IsServer) return;
-
-            // 서버 시작 시 초기 설정
-            // SpawnManager는 GameNetworkManager에서 직접 호출되어 초기 적 및 플레이어 스폰을 처리
-            // AIManager는 필요한 경우 GameNetworkManager에서 관리하거나, OnNetworkSpawn을 통해 자체적으로 관리 가능
+            // This is a global manager, it should persist but only execute logic on the appropriate side.
         }
         
         public override void OnNetworkDespawn()
         {
-            // 서버 측 구독을 모두 정리하세요
+            // Cleanup server-side subscriptions if any
+        }
+
+        public void RequestLogout()
+        {
+            StartCoroutine(LogoutCoroutine());
+        }
+
+        private IEnumerator LogoutCoroutine()
+        {
+            // 1. Shutdown the network connection
+            if (NetworkManager.Singleton != null)
+            {
+                NetworkManager.Singleton.Shutdown();
+            }
+            
+            // 2. Clear authentication token
+            if (AuthManager.Instance != null)
+            {
+                AuthManager.Instance.ClearStoredToken();
+            }
+
+            // 3. Wait a frame for shutdown processes to complete
+            yield return null;
+
+            // 4. Load the main menu/login scene
+            SceneManager.LoadScene("MainScene");
+        }
+
+        public void QuitApplication()
+        {
+            // If in a network session, shut it down first
+            if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening)
+            {
+                NetworkManager.Singleton.Shutdown();
+            }
+
+#if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPlaying = false;
+#else
+            Application.Quit();
+#endif
         }
     }
 }

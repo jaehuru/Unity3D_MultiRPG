@@ -3,7 +3,7 @@ using UnityEngine;
 using Jae.Common;
 using Unity.Netcode;
 
-namespace Jae.DataTypes
+namespace Jae.Commom
 {
     public struct DamageEvent
     {
