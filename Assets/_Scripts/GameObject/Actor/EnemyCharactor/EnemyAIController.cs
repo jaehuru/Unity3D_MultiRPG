@@ -1,0 +1,222 @@
+using UnityEngine;
+using Unity.Netcode;
+using UnityEngine.AI;
+using Jae.Common;
+using System.Collections;
+
+[RequireComponent(typeof(NavMeshAgent))]
+[RequireComponent(typeof(ICombatant))]
+public class EnemyAIController : NetworkBehaviour
+{
+    public enum EnemyAIState { Idle, Patrol, Chase, ReturnHome, Dead }
+
+    [Header("AI Settings")]
+    [SerializeField] private float attackInterval = 2f;
+    [SerializeField] private float chaseRange = 10f;
+    [SerializeField] private float patrolStoppingDistance = 0.5f;
+    [SerializeField] private float patrolRadius = 7f;
+    [SerializeField] private float returnHomeDistance = 15f;
+    [SerializeField] private float patrolWaitTime = 3f;
+
+    private NavMeshAgent _agent;
+    private ICombatant _combatant;
+    private Transform _transform;
+
+    // AI State
+    private EnemyAIState _currentState;
+    private float _attackTimer;
+    private Vector3 _homePosition;
+    private Coroutine _patrolCoroutine;
+    private bool _isTransitioning;
+
+    public override void OnNetworkSpawn()
+    {
+        base.OnNetworkSpawn();
+        if (!IsServer)
+        {
+            enabled = false;
+            return;
+        }
+
+        _agent = GetComponent<NavMeshAgent>();
+        _combatant = GetComponent<ICombatant>();
+        _transform = transform;
+        _homePosition = _transform.position;
+
+        if (AIManager.Instance != null)
+        {
+            AIManager.Instance.Register(this);
+        }
+        
+        SetAIState(EnemyAIState.Idle);
+    }
+
+    public override void OnNetworkDespawn()
+    {
+        base.OnNetworkDespawn();
+        if (IsServer && AIManager.Instance != null)
+        {
+            AIManager.Instance.Unregister(this);
+        }
+    }
+
+    void Update()
+    {
+        if (_currentState == EnemyAIState.Dead || !_agent.enabled || !_agent.isOnNavMesh) return;
+
+        float deltaTime = Time.deltaTime;
+        _attackTimer -= deltaTime;
+
+        GameObject nearestPlayer = FindNearestPlayer();
+        float distanceToHome = Vector3.Distance(_transform.position, _homePosition);
+
+        switch (_currentState)
+        {
+            case EnemyAIState.Idle:
+                if (nearestPlayer != null) SetAIState(EnemyAIState.Chase);
+                else if (!_isTransitioning)
+                {
+                    StartTransitionToPatrol();
+                }
+                break;
+            case EnemyAIState.Patrol:
+                if (nearestPlayer != null) SetAIState(EnemyAIState.Chase);
+                break;
+            case EnemyAIState.Chase:
+                if (nearestPlayer == null || distanceToHome > returnHomeDistance)
+                {
+                    SetAIState(EnemyAIState.ReturnHome);
+                    break;
+                }
+                float distanceToPlayer = Vector3.Distance(_transform.position, nearestPlayer.transform.position);
+
+                float attackRange = 2.0f;
+                if (_combatant.GetAttackHandler() != null)
+                {
+                    attackRange = 2.0f;
+                }
+
+                if (distanceToPlayer <= attackRange)
+                {
+                    if(_agent.isStopped == false) _agent.isStopped = true;
+                    _transform.LookAt(nearestPlayer.transform.position);
+                    if (CanNormalAttack())
+                    {
+                        _attackTimer = attackInterval;
+                        _combatant.GetAttackHandler()?.NormalAttack(new Jae.Common.AttackContext{ TargetNetworkObjectRef = nearestPlayer.GetComponent<NetworkObject>() });
+                    }
+                }
+                else
+                {
+                    if(_agent.isStopped == true) _agent.isStopped = false;
+                    _agent.SetDestination(nearestPlayer.transform.position);
+                }
+                break;
+            case EnemyAIState.ReturnHome:
+                _agent.SetDestination(_homePosition);
+                if (!_agent.pathPending && _agent.remainingDistance <= patrolStoppingDistance)
+                {
+                    SetAIState(EnemyAIState.Idle);
+                }
+                break;
+        }
+    }
+
+    private void SetAIState(EnemyAIState newState)
+    {
+        if (_currentState == newState && _patrolCoroutine != null) return;
+
+        if (_currentState == EnemyAIState.Patrol && _patrolCoroutine != null)
+        {
+            StopCoroutine(_patrolCoroutine);
+            _patrolCoroutine = null;
+        }
+
+        _currentState = newState;
+        _isTransitioning = false;
+
+        switch (newState)
+        {
+            case EnemyAIState.Idle:
+                if(_agent.isOnNavMesh) _agent.isStopped = true;
+                break;
+            case EnemyAIState.Patrol:
+                if(_agent.isOnNavMesh) _agent.isStopped = false;
+                StartPatrol();
+                break;
+            case EnemyAIState.Chase:
+            case EnemyAIState.ReturnHome:
+                if(_agent.isOnNavMesh) _agent.isStopped = false;
+                break;
+            case EnemyAIState.Dead:
+                if(_agent.isOnNavMesh) _agent.isStopped = true;
+                break;
+        }
+    }
+
+    private void StartTransitionToPatrol()
+    {
+        _isTransitioning = true;
+        _patrolCoroutine = StartCoroutine(TransitionToPatrolCoroutine());
+    }
+
+    private IEnumerator TransitionToPatrolCoroutine()
+    {
+        yield return new WaitForSeconds(patrolWaitTime);
+        if (_currentState == EnemyAIState.Idle)
+        {
+            SetAIState(EnemyAIState.Patrol);
+        }
+        _isTransitioning = false;
+        _patrolCoroutine = null;
+    }
+
+    private void StartPatrol()
+    {
+        if (_patrolCoroutine != null) StopCoroutine(_patrolCoroutine);
+        _patrolCoroutine = StartCoroutine(PatrolWanderCoroutine());
+    }
+
+    private IEnumerator PatrolWanderCoroutine()
+    {
+        while (_currentState == EnemyAIState.Patrol)
+        {
+            Vector3 randomPoint = _homePosition + Random.insideUnitSphere * patrolRadius;
+            if (NavMesh.SamplePosition(randomPoint, out var hit, patrolRadius, NavMesh.AllAreas))
+            {
+                if(_agent.isOnNavMesh) _agent.SetDestination(hit.position);
+                yield return new WaitUntil(() => !_agent.pathPending && _agent.remainingDistance <= patrolStoppingDistance);
+            }
+            yield return new WaitForSeconds(patrolWaitTime + Random.Range(-1f, 1f));
+        }
+        _patrolCoroutine = null;
+    }
+
+    private GameObject FindNearestPlayer()
+    {
+        Collider[] hitColliders = Physics.OverlapSphere(_transform.position, chaseRange, LayerMask.GetMask("Player"));
+        GameObject nearestPlayer = null;
+        float minDistance = float.MaxValue;
+
+        foreach (var hitCollider in hitColliders)
+        {
+            if (hitCollider.TryGetComponent<ICombatant>(out var p) && p.GetHealth().Current > 0)
+            {
+                if (p == _combatant) continue;
+
+                float distance = Vector3.Distance(_transform.position, hitCollider.transform.position);
+                if (distance < minDistance)
+                {
+                    minDistance = distance;
+                    nearestPlayer = (p as Component)?.gameObject;
+                }
+            }
+        }
+        return nearestPlayer;
+    }
+
+    private bool CanNormalAttack()
+    {
+        return _attackTimer <= 0f;
+    }
+}

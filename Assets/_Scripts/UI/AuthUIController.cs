@@ -1,8 +1,8 @@
 using UnityEngine;
 using TMPro; 
-using Unity.Netcode; 
 using UnityEngine.UI; 
-using Jae.Authentication;
+using Jae.Manager; // For AuthManager and GameManager
+using Unity.Netcode;
 
 public class AuthUIController : MonoBehaviour
 {
@@ -70,43 +70,70 @@ public class AuthUIController : MonoBehaviour
             }
         });
         
-        if (AuthService.Instance != null)
+        if (AuthManager.Instance != null)
         {
-            AuthService.Instance.OnAuthSuccess.AddListener(OnAuthServiceSuccess);
+            AuthManager.Instance.OnLoginSuccess.AddListener(OnLoginSuccessHandler);
+            AuthManager.Instance.OnLoginFailure.AddListener(OnLoginFailureHandler);
+            AuthManager.Instance.OnRegisterSuccess.AddListener(OnRegisterSuccessHandler);
+            AuthManager.Instance.OnRegisterFailure.AddListener(OnRegisterFailureHandler);
         }
         else
         {
-            Debug.LogError("[AuthUIController] AuthService.Instance is null. Is AuthService GameObject in the scene and persistent?");
-        }
-
-        if (NetworkManager.Singleton != null)
-        {
-            NetworkManager.Singleton.OnClientDisconnectCallback += HandleClientDisconnect;
+            Debug.LogError("[AuthUIController] AuthManager.Instance is null. Is AuthManager GameObject in the scene and persistent?");
         }
     }
 
     private void OnDestroy()
     {
-        if (AuthService.Instance != null)
+        if (AuthManager.Instance != null)
         {
-            AuthService.Instance.OnAuthSuccess.RemoveListener(OnAuthServiceSuccess);
-        }
-        if (NetworkManager.Singleton != null)
-        {
-            NetworkManager.Singleton.OnClientDisconnectCallback -= HandleClientDisconnect;
+            AuthManager.Instance.OnLoginSuccess.RemoveListener(OnLoginSuccessHandler);
+            AuthManager.Instance.OnLoginFailure.RemoveListener(OnLoginFailureHandler);
+            AuthManager.Instance.OnRegisterSuccess.RemoveListener(OnRegisterSuccessHandler);
+            AuthManager.Instance.OnRegisterFailure.RemoveListener(OnRegisterFailureHandler);
         }
     }
     
-    private void OnAuthServiceSuccess()
+    private void OnLoginSuccessHandler()
     {
         ShowRoleSelectionPanel();
+    }
+
+    private void OnLoginFailureHandler(string message)
+    {
+        if (loginStatusText != null)
+        {
+            loginStatusText.text = "Login Failed: " + message;
+        }
+        Debug.LogError("[AuthUIController] Login failed callback: " + message);
+    }
+
+    private void OnRegisterSuccessHandler(string message)
+    {
+        if (registerStatusText != null)
+        {
+            registerStatusText.text = "Registration Successful: " + message;
+        }
+        Debug.Log("[AuthUIController] Registration Successful: " + message);
+        ShowLoginPanel(); // Go back to login after successful registration
+    }
+
+    private void OnRegisterFailureHandler(string message)
+    {
+        if (registerStatusText != null)
+        {
+            registerStatusText.text = "Registration Failed: " + message;
+        }
+        Debug.LogError("[AuthUIController] Registration failed callback: " + message);
     }
     
     private void HandleClientDisconnect(ulong clientId)
     {
-        if (NetworkManager.Singleton.IsServer) return; 
+        // This is still using NetworkManager, which is fine
+        // A dedicated NetworkUIController might be better for this in future
+        if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsServer) return; 
 
-        string reason = NetworkManager.Singleton.DisconnectReason;
+        string reason = NetworkManager.Singleton?.DisconnectReason; // Use null conditional operator
         if (string.IsNullOrEmpty(reason))
         {
             reason = "Failed to connect or lost connection.";
@@ -132,21 +159,7 @@ public class AuthUIController : MonoBehaviour
         }
         if (registerStatusText != null) registerStatusText.text = "Registering...";
         
-        if (AuthService.Instance != null)
-        {
-            AuthService.Instance.RegisterUser(username, email, password, (success, message) => {
-                if (registerStatusText != null)
-                {
-                    registerStatusText.text = message;
-                }
-
-                if (!success)
-                {
-                    Debug.LogError("[AuthUIController] Registration failed callback: " + message);
-                }
-            });
-        }
-        else Debug.LogError("[AuthUIController] AuthService.Instance is null for registration.");
+        AuthManager.Instance.AttemptRegister(username, email, password);
     }
     
     public void OnLoginButtonClick()
@@ -163,37 +176,17 @@ public class AuthUIController : MonoBehaviour
         if (loginStatusText != null) loginStatusText.text = "Logging in...";
         if (connectionStatusText != null) connectionStatusText.text = "";
         
-        if (AuthService.Instance != null)
-        {
-            AuthService.Instance.LoginUser(username, password, (success, message) => 
-            {
-                if (loginStatusText != null)
-                {
-                    loginStatusText.text = message;
-                }
-
-                if (!success)
-                {
-                    Debug.LogError("[AuthUIController] Login failed callback: " + message);
-                }
-            });
-        }
-        else Debug.LogError("[AuthUIController] AuthService.Instance is null for login.");
+        AuthManager.Instance.AttemptLogin(username, password);
     }
 
     public void OnQuitApplicationButtonClick()
     {
-
-#if UNITY_EDITOR
-        UnityEditor.EditorApplication.isPlaying = false;
-#else
-        Application.Quit();
-#endif
+        GameManager.Instance.QuitApplication();
     }
     
     public void ShowRoleSelectionPanel()
     {
-        if (AuthService.Instance != null && !string.IsNullOrEmpty(AuthService.Instance.GetCurrentToken()))
+        if (AuthManager.Instance != null && !string.IsNullOrEmpty(AuthManager.Instance.GetCurrentToken()))
         {
     
             loginPanel?.SetActive(false);

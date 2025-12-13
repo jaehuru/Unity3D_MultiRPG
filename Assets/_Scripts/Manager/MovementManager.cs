@@ -1,6 +1,6 @@
+using Jae.Commom;
 using Unity.Netcode;
 using Jae.Common;
-using Jae.DataTypes;
 using Jae.Manager;
 
 public class MovementManager : NetworkBehaviour

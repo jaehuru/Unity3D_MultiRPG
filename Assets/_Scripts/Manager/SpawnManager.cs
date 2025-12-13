@@ -189,87 +189,168 @@ public class SpawnManager : NetworkBehaviour
         }
     }
     
-    private IEnumerator DespawnCoroutine(ICombatant combatant)
-    {
-        Debug.Log($"[SpawnManager] {((Component)combatant).name}을(를) 디스폰합니다.");
-        
-        if (combatant is EnemyCharacter)
+        private IEnumerator DespawnCoroutine(ICombatant combatant)
+    
         {
-            AIManager.Instance.UnregisterAI(combatant);
-        }
-        
-        if (combatant is Component component && component.TryGetComponent<NetworkObject>(out var netObj))
-        {
-            if (netObj.IsSpawned)
+    
+            Debug.Log($"[SpawnManager] {((Component)combatant).name}을(를) 디스폰합니다.");
+    
+    
+    
+            var component = combatant as Component;
+    
+            if (component != null && component.TryGetComponent<EnemyAIController>(out var aiController))
+    
             {
-                netObj.Despawn(true);
+    
+                AIManager.Instance.Unregister(aiController);
+    
             }
-        }
-        yield break;
-    }
-
-    private IEnumerator RespawnCoroutine(ICombatant combatant)
-    {
-        var spawnable = combatant as ISpawnable;
-        var respawnPolicy = spawnable.GetRespawnPolicy();
-
-        SetCharacterState(combatant, false);
-        
-        TimeSpan delay = respawnPolicy.GetRespawnDelay(spawnable);
-        yield return new WaitForSeconds((float)delay.TotalSeconds);
-
-        ISpawnPoint point = respawnPolicy.SelectRespawnPoint(spawnable);
-        if (point == null)
-        {
-            if (_initialPositions.TryGetValue(combatant, out var initialPos))
+    
+            
+    
+            if (component != null && component.TryGetComponent<NetworkObject>(out var netObj))
+    
             {
-                point = new SimpleSpawnPoint(initialPos, Quaternion.identity, SpawnFilter.None);
+    
+                if (netObj.IsSpawned)
+    
+                {
+    
+                    netObj.Despawn(true);
+    
+                }
+    
             }
-            else if (playerSpawnPoints.Length > 0)
-            {
-                point = new SimpleSpawnPoint(playerSpawnPoints[0].position, playerSpawnPoints[0].rotation, SpawnFilter.Player);
-            } else
-            {
-                Debug.LogError("리스폰 지점을 찾을 수 없습니다!");
-                yield break;
-            }
+    
+            yield break;
+    
         }
-
-        if (combatant is Component component && component.TryGetComponent<IMovable>(out var movable))
+    
+    
+    
+        private IEnumerator RespawnCoroutine(ICombatant combatant)
+    
         {
-            movable.Teleport(point.GetPosition());
+    
+            var spawnable = combatant as ISpawnable;
+    
+            var respawnPolicy = spawnable.GetRespawnPolicy();
+    
+    
+    
+            SetCharacterState(combatant, false);
+    
+            
+    
+            TimeSpan delay = respawnPolicy.GetRespawnDelay(spawnable);
+    
+            yield return new WaitForSeconds((float)delay.TotalSeconds);
+    
+    
+    
+            ISpawnPoint point = respawnPolicy.SelectRespawnPoint(spawnable);
+    
+            if (point == null)
+    
+            {
+    
+                if (_initialPositions.TryGetValue(combatant, out var initialPos))
+    
+                {
+    
+                    point = new SimpleSpawnPoint(initialPos, Quaternion.identity, SpawnFilter.None);
+    
+                }
+    
+                else if (playerSpawnPoints.Length > 0)
+    
+                {
+    
+                    point = new SimpleSpawnPoint(playerSpawnPoints[0].position, playerSpawnPoints[0].rotation, SpawnFilter.Player);
+    
+                } else
+    
+                {
+    
+                    Debug.LogError("리스폰 지점을 찾을 수 없습니다!");
+    
+                    yield break;
+    
+                }
+    
+            }
+    
+    
+    
+            if (combatant is Component component && component.TryGetComponent<IMovable>(out var movable))
+    
+            {
+    
+                movable.Teleport(point.GetPosition());
+    
+            }
+    
+            
+    
+            var health = combatant.GetHealth();
+    
+            health.Heal(health.Max);
+    
+    
+    
+            SetCharacterState(combatant, true);
+    
+    
+    
+            Debug.Log($"{((Component)combatant).name}이(가) {point.GetPosition()}에서 리스폰되었습니다.");
+    
         }
+    
         
-        var health = combatant.GetHealth();
-        health.Heal(health.Max);
-
-        SetCharacterState(combatant, true);
-
-        Debug.Log($"{((Component)combatant).name}이(가) {point.GetPosition()}에서 리스폰되었습니다.");
+    
+        private void SetCharacterState(ICombatant combatant, bool active)
+    
+        {
+    
+            if (combatant as Component == null) return;
+    
+            
+    
+            var component = combatant as Component;
+    
+            if (component.TryGetComponent<Collider>(out var col)) col.enabled = active;
+    
+            if (component.TryGetComponent<Renderer>(out var rend)) rend.enabled = active;
+    
+            if (component.TryGetComponent<NavMeshAgent>(out var agent))
+    
+            {
+    
+                if (agent.isOnNavMesh)
+    
+                {
+    
+                    agent.isStopped = !active;
+    
+                }
+    
+                agent.enabled = active;
+    
+            }
+    
+    
+    
+            if (component.TryGetComponent<EnemyAIController>(out var aiController))
+    
+            {
+    
+                aiController.enabled = active;
+    
+            }
+    
+        }
+    
     }
     
-    private void SetCharacterState(ICombatant combatant, bool active)
-    {
-        if (combatant as Component == null) return;
-        
-        var component = combatant as Component;
-        if (component.TryGetComponent<Collider>(out var col)) col.enabled = active;
-        if (component.TryGetComponent<Renderer>(out var rend)) rend.enabled = active;
-        if (component.TryGetComponent<NavMeshAgent>(out var agent))
-        {
-            if (agent.isOnNavMesh)
-            {
-                agent.isStopped = !active;
-            }
-            agent.enabled = active;
-        }
-
-        if (combatant is EnemyCharacter)
-        {
-            if (active)
-                AIManager.Instance.SetEnemyAlive(combatant);
-            else
-                AIManager.Instance.SetEnemyDead(combatant);
-        }
-    }
-}
+    
