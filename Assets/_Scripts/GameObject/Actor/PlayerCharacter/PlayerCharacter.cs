@@ -4,9 +4,8 @@ using UnityEngine.AI;
 using UnityEngine.InputSystem;
 using Unity.Collections;
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using Jae.Commom;
+using Jae.Common;
 using Jae.Common;
 using Jae.Manager;
 
@@ -24,7 +23,8 @@ public class PlayerCharacter : NetworkBehaviour,
     ISaveable,
     IWorldSpaceUIProvider,
     IStatProvider,
-    IAttackHandler
+    IAttackHandler,
+    IStateActivable
 {
     private readonly NetworkVariable<FixedString32Bytes> networkPlayerName = new(writePerm: NetworkVariableWritePermission.Server);
 
@@ -37,8 +37,22 @@ public class PlayerCharacter : NetworkBehaviour,
 
     // --- Interfaces ---
     private IHealth _playerHealth;
-    
-#region Interface Implementations
+
+    public void Activate()
+    {
+        if (TryGetComponent<PlayerController>(out var controller)) controller.enabled = true;
+        if (TryGetComponent<Collider>(out var col)) col.enabled = true;
+        // Players likely have more complex logic for showing renderers (cosmetics etc), 
+        // so we'll only handle core gameplay components for now.
+    }
+
+    public void Deactivate()
+    {
+        if (TryGetComponent<PlayerController>(out var controller)) controller.enabled = false;
+        if (TryGetComponent<Collider>(out var col)) col.enabled = false;
+    }
+
+    #region Interface Implementations
     // IActor Implementation
     public string GetId() => OwnerClientId.ToString();
     public Transform GetTransform() => transform;
@@ -235,18 +249,21 @@ public class PlayerCharacter : NetworkBehaviour,
     public override void OnNetworkSpawn()
     {
         base.OnNetworkSpawn();
-        // UI 등록을 한 프레임 지연시켜 Netcode의 PlayerObject가 설정될 시간을 줍니다.
-        StartCoroutine(RegisterUIAfterFrame());
-    }
-
-    private IEnumerator RegisterUIAfterFrame()
-    {
-        // Netcode의 내부 상태가 업데이트되도록 한 프레임 기다립니다.
-        yield return null;
-
+        
         if (WorldSpaceUIManager.Instance != null)
         {
             WorldSpaceUIManager.Instance.RegisterUIProvider(NetworkObjectId, this);
+        }
+        
+        if (IsOwner)
+        {
+            if (CameraManager.Instance != null && CameraManager.Instance.MainCamera != null)
+            {
+                if (CameraManager.Instance.MainCamera.TryGetComponent<PlayerCamera>(out var playerCamera))
+                {
+                    playerCamera.SetTarget(GetComponent<PlayerController>());
+                }
+            }
         }
     }
 

@@ -2,6 +2,7 @@ using UnityEngine;
 using Unity.Netcode;
 using UnityEngine.SceneManagement;
 using Jae.Manager;
+using System.Collections;
 
 namespace Jae.Application
 {
@@ -40,16 +41,26 @@ namespace Jae.Application
             }
 #endif
         }
-        
-        private void OnLoadCompleteHandler(ulong clientId, string sceneName, LoadSceneMode loadSceneMode)
+
+        private void OnLoadCompleteWrapper(ulong clientId, string sceneName, LoadSceneMode loadSceneMode)
         {
-            if (!NetworkManager.Singleton.IsServer) return;
+            StartCoroutine(OnLoadCompleteCoroutine(clientId, sceneName, loadSceneMode));
+        }
+        
+        private IEnumerator OnLoadCompleteCoroutine(ulong clientId, string sceneName, LoadSceneMode loadSceneMode)
+        {
+            // Wait one frame to ensure all objects in the scene have run their Awake() and OnNetworkSpawn()
+            yield return null;
+
+            if (!NetworkManager.Singleton.IsServer) yield break;
             
+            // Spawn initial enemies only once when the server loads the scene
             if (clientId == NetworkManager.ServerClientId)
             {
                 SpawnManager.Instance.SpawnInitialEnemies();
             }
             
+            // Spawn player object for the client that just loaded the scene
             if (PlayerSessionManager.Instance.TryGetClientInfo(clientId, out var clientInfo))
             {
                 NetworkObject playerNetworkObject = SpawnManager.Instance.SpawnPlayer(clientId, clientInfo.PlayerSpawnPosition);
@@ -64,6 +75,7 @@ namespace Jae.Application
             }
             else
             {
+                // This can happen for the server itself on startup if not a host, which is fine.
                 if (clientId != NetworkManager.ServerClientId)
                 {
                     Debug.LogWarning($"[NetworkGameOrchestrator] ClientInfo not found for client {clientId} in OnLoadCompleteHandler. Cannot spawn player.");
@@ -80,7 +92,7 @@ namespace Jae.Application
 
                 if (SceneFlowManager.Instance != null) 
                 {
-                    SceneFlowManager.Instance.OnSceneLoadComplete -= OnLoadCompleteHandler;
+                    SceneFlowManager.Instance.OnSceneLoadComplete -= OnLoadCompleteWrapper;
                 }
             }
         }
@@ -127,7 +139,7 @@ namespace Jae.Application
                 if (SceneFlowManager.Instance != null)
                 {
                     
-                    SceneFlowManager.Instance.OnSceneLoadComplete += OnLoadCompleteHandler;
+                    SceneFlowManager.Instance.OnSceneLoadComplete += OnLoadCompleteWrapper;
                 }
                 else
                 {
@@ -180,7 +192,7 @@ namespace Jae.Application
             NetworkManager.Singleton.StartServer();
             if (SceneFlowManager.Instance != null)
             {
-                SceneFlowManager.Instance.OnSceneLoadComplete += OnLoadCompleteHandler;
+                SceneFlowManager.Instance.OnSceneLoadComplete += OnLoadCompleteWrapper;
             }
             else
             {

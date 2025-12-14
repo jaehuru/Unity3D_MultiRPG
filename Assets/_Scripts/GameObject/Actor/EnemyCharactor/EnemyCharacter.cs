@@ -1,5 +1,5 @@
 using System;
-using Jae.Commom;
+using Jae.Common;
 using UnityEngine;
 using Unity.Netcode;
 using Unity.Collections;
@@ -18,7 +18,8 @@ public class EnemyCharacter : NetworkBehaviour,
     ISaveable,
     IWorldSpaceUIProvider,
     IStatProvider,
-    IAttackHandler
+    IAttackHandler,
+    IStateActivable
 {
     public string GetId() => NetworkObjectId.ToString();
     public Transform GetTransform() => transform;
@@ -48,6 +49,44 @@ public class EnemyCharacter : NetworkBehaviour,
     public string GetDisplayName() => _networkEnemyName.Value.ToString();
     public float GetHealthRatio() => _maxHealth.Value > 0 ? _currentHealth.Value / _maxHealth.Value : 0f;
     public NetworkVariable<FixedString32Bytes> CharacterName => _networkEnemyName;
+
+    public void Activate()
+    {
+        if (TryGetComponent<Collider>(out var col)) col.enabled = true;
+        if (TryGetComponent<Renderer>(out var rend)) rend.enabled = true;
+
+        if (TryGetComponent<NavMeshAgent>(out var agent))
+        {
+            agent.enabled = true;
+            if (agent.isOnNavMesh)
+            {
+                agent.isStopped = false;
+            }
+        }
+        if (TryGetComponent<EnemyAIController>(out var aiController))
+        {
+            aiController.enabled = true;
+        }
+    }
+
+    public void Deactivate()
+    {
+        if (TryGetComponent<Collider>(out var col)) col.enabled = false;
+        if (TryGetComponent<Renderer>(out var rend)) rend.enabled = false;
+
+        if (TryGetComponent<NavMeshAgent>(out var agent))
+        {
+            if (agent.isOnNavMesh)
+            {
+                agent.isStopped = true;
+            }
+            agent.enabled = false;
+        }
+        if (TryGetComponent<EnemyAIController>(out var aiController))
+        {
+            aiController.enabled = false;
+        }
+    }
 
 #region Interface Implementations
 

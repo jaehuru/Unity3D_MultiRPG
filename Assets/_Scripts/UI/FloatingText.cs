@@ -8,39 +8,51 @@ public class FloatingText : MonoBehaviour
     [SerializeField] private float moveSpeed = 1f;
     [SerializeField] private Vector3 moveDirection = Vector3.up;
 
-    private float lifeTimer;
+    private float _lifeTimer;
+    private Color _originalColor;
 
-    void Awake()
-    {
-        lifeTimer = lifeTime;
-    }
-
-    public void SetDamage(int damage)
+    private void Awake()
     {
         if (damageText != null)
         {
-            damageText.text = damage.ToString();
+            _originalColor = damageText.color;
         }
+    }
+
+    public void Show(int damage, Vector3 position)
+    {
+        _lifeTimer = lifeTime;
+        transform.position = position;
+        if (damageText != null)
+        {
+            damageText.text = damage.ToString();
+            damageText.color = _originalColor;
+        }
+        
+        gameObject.SetActive(true);
     }
 
     void Update()
     {
+        if (_lifeTimer <= 0) return;
+
         transform.position += moveDirection * moveSpeed * Time.deltaTime;
 
-        lifeTimer -= Time.deltaTime;
+        _lifeTimer -= Time.deltaTime;
         
-        if (lifeTimer < lifeTime / 2)
+        if (_lifeTimer < lifeTime / 2)
         {
             if (damageText != null)
             {
-                float alpha = Mathf.Lerp(0f, 1f, lifeTimer / (lifeTime / 2));
-                damageText.color = new Color(damageText.color.r, damageText.color.g, damageText.color.b, alpha);
+                float alpha = Mathf.Lerp(0f, 1f, _lifeTimer / (lifeTime / 2));
+                damageText.color = new Color(_originalColor.r, _originalColor.g, _originalColor.b, alpha);
             }
         }
 
-        if (lifeTimer <= 0)
+        if (_lifeTimer <= 0)
         {
-            Destroy(gameObject);
+            FloatingTextPool.Instance.Return(this);
         }
     }
 }
+

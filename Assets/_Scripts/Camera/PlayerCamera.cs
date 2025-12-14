@@ -46,21 +46,6 @@ public class PlayerCamera : MonoBehaviour
     {
         if (targetController == null)
         {
-            if (NetworkManager.Singleton != null && NetworkManager.Singleton.LocalClient != null)
-            {
-                var localPlayerObj = NetworkManager.Singleton.LocalClient.PlayerObject;
-                if (localPlayerObj != null && localPlayerObj.TryGetComponent(out targetController))
-                {
-                    firstPersonAnchor = targetController.transform.Find("FirstPersonAnchor");
-                    thirdPersonAnchor = targetController.transform.Find("ThirdPersonAnchor");
-                    if (firstPersonAnchor == null || thirdPersonAnchor == null)
-                    {
-                        Debug.LogError("PlayerCamera: FirstPersonAnchor or ThirdPersonAnchor not found as children of the player. Please create them.");
-                        enabled = false;
-                        return;
-                    }
-                }
-            }
             return;
         }
         
@@ -79,6 +64,19 @@ public class PlayerCamera : MonoBehaviour
             thirdPersonAnchor.localRotation = Quaternion.Euler(_xRotation, 0, 0);
             transform.position = thirdPersonAnchor.position - (thirdPersonAnchor.forward * thirdPersonDistance);
             transform.LookAt(thirdPersonAnchor.position);
+        }
+    }
+
+    public void SetTarget(PlayerController target)
+    {
+        targetController = target;
+        firstPersonAnchor = targetController.transform.Find("FirstPersonAnchor");
+        thirdPersonAnchor = targetController.transform.Find("ThirdPersonAnchor");
+
+        if (firstPersonAnchor == null || thirdPersonAnchor == null)
+        {
+            Debug.LogError("PlayerCamera: FirstPersonAnchor or ThirdPersonAnchor not found as children of the player. Please create them.");
+            enabled = false;
         }
     }
     
