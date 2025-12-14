@@ -75,11 +75,13 @@ public class SpawnManager : NetworkBehaviour
 
     public NetworkObject SpawnPlayer(ulong clientId, Vector3 spawnPosition)
     {
+        Debug.Log($"[SpawnManager] SpawnPlayer called for client {clientId} at {spawnPosition}.");
+
         if (!IsServer) return null;
 
         if (playerPrefab == null)
         {
-            Debug.LogError("Player prefab is not set in SpawnManager.");
+            Debug.LogError("[SpawnManager] Player prefab is not set in SpawnManager's Inspector.");
             return null;
         }
 
@@ -87,11 +89,16 @@ public class SpawnManager : NetworkBehaviour
         NetworkObject networkObject = playerInstance.GetComponent<NetworkObject>();
         if (networkObject == null)
         {
-            Debug.LogError("Player prefab is missing NetworkObject component.");
+            Debug.LogError("[SpawnManager] Player prefab is missing NetworkObject component. Cannot spawn.");
             Destroy(playerInstance);
             return null;
         }
+        
+        Debug.Log($"[SpawnManager] Player prefab instantiated. Attempting to SpawnAsPlayerObject for client {clientId}. Prefab Name: {playerPrefab.name}, NetworkObjectId: {networkObject.NetworkObjectId}");
+
         networkObject.SpawnAsPlayerObject(clientId, true);
+
+        Debug.Log($"[SpawnManager] Player spawn initiated successfully for client {clientId}. NetworkObjectId: {networkObject.NetworkObjectId}");
 
         if (networkObject.TryGetComponent<ICombatant>(out var combatant))
         {

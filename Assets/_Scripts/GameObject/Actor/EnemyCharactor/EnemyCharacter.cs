@@ -48,7 +48,7 @@ public class EnemyCharacter : NetworkBehaviour,
     public float GetHealthRatio() => _maxHealth.Value > 0 ? _currentHealth.Value / _maxHealth.Value : 0f;
     public NetworkVariable<FixedString32Bytes> CharacterName => _networkEnemyName;
 
-    #region Interface Implementations
+#region Interface Implementations
 
     // ICombatant
     public IHealth GetHealth() => _enemyHealth;
@@ -86,18 +86,9 @@ public class EnemyCharacter : NetworkBehaviour,
 
     // IAttackHandler
     public bool CanNormalAttack() => true;
-    public void NormalAttack(AttackContext ctx)
+    public void NormalAttack()
     {
-        if (!IsServer) return;
-
-        if (!ctx.TargetNetworkObjectRef.TryGet(out var targetNetworkObject)) return;
-
-        var target = targetNetworkObject.gameObject;
-
-        if (target.TryGetComponent<ICombatant>(out var combatant))
-        {
-            CombatManager.Instance.ProcessAttack(this, combatant);
-        }
+        //  TODO: 공격 애니메이션 재생과 같은 표현 로직만 남겨야 함
     }
     public AttackType GetAttackType() => AttackType.Melee;
     public DamageType GetDefaultDamageType() => DamageType.Physical;
@@ -131,9 +122,9 @@ public class EnemyCharacter : NetworkBehaviour,
     // ISaveable
     public SaveData SerializeForSave() { throw new NotImplementedException(); }
     public void DeserializeFromSave(SaveData data) { throw new NotImplementedException(); }
-    #endregion
+#endregion
 
-    #region Nested Classes (Health, Respawn Policy)
+#region Nested Classes (Health, Respawn Policy)
     private class EnemyHealth : IHealth
     {
         private readonly EnemyCharacter _owner;
@@ -181,7 +172,7 @@ public class EnemyCharacter : NetworkBehaviour,
             return null;
         }
     }
-    #endregion
+#endregion
 
     private void Awake()
     {

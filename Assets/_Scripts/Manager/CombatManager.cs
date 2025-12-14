@@ -26,6 +26,62 @@ public class CombatManager : NetworkBehaviour
             Instance = this;
         }
     }
+
+    [ServerRpc(InvokePermission = RpcInvokePermission.Everyone)]
+    public void PlayerAttackRequestServerRpc(ulong clientId)
+    {
+        if (!IsServer) return;
+
+        if (!NetworkManager.Singleton.ConnectedClients.TryGetValue(clientId, out var client) || client.PlayerObject == null)
+        {
+            Debug.LogError($"[CombatManager] Could not find PlayerObject for client {clientId}");
+            return;
+        }
+        
+        var attackerObject = client.PlayerObject;
+        if (!attackerObject.TryGetComponent<ICombatant>(out var attacker))
+        {
+            Debug.LogError($"[CombatManager] Attacker {attackerObject.name} does not have an ICombatant interface.");
+            return;
+        }
+        
+        ICombatant target = null;
+        var attackerTransform = (attacker as IActor).GetTransform();
+        if (attackerTransform == null) 
+        {
+            Debug.LogError($"[CombatManager] Attacker {attackerObject.name} does not have a valid transform via IActor.");
+            return;
+        }
+        float attackRange = attacker.GetAttackHandler()?.GetAttackType() == AttackType.Melee ? 2.0f : 20.0f; // TODO: Get range from stats/weapon
+        
+        if (Physics.Raycast(attackerTransform.position + Vector3.up * 0.5f, attackerTransform.forward, out var hit, attackRange + 1f))
+        {
+            if (hit.collider.TryGetComponent<ICombatant>(out var potentialTarget))
+            {
+                // Ensure the attacker is not targeting themselves
+                if (potentialTarget as Component != attacker as Component)
+                {
+                    target = potentialTarget;
+                }
+            }
+        }
+        
+        if (target != null)
+        {
+            ProcessAttack(attacker, target);
+        }
+        else
+        {
+            // Optional: 공격이 아무것도 맞추지 못한 경우를 처리
+            Debug.Log($"[CombatManager] {attackerObject.name}'s attack missed.");
+        }
+    }
+
+    public void ProcessAIAttack(ICombatant attacker, ICombatant target)
+    {
+        if (!IsServer) return;
+        ProcessAttack(attacker, target);
+    }
     
     public void ProcessAttack(ICombatant attacker, ICombatant target)
     {

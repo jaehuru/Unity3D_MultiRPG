@@ -1,9 +1,10 @@
 using Unity.Netcode;
-using UnityEngine.SceneManagement;
 using System.Collections;
 
 namespace Jae.Manager
 {
+    // 게임 진행 로직 담당
+    // ex) Stage, 보스, 퀘스트, 경험치, 레벨 관리, UI 이벤트 처리
     public class GameManager : NetworkBehaviour
     {
         public static GameManager Instance { get; private set; }
@@ -54,7 +55,7 @@ namespace Jae.Manager
             yield return null;
 
             // 4. Load the main menu/login scene
-            SceneManager.LoadScene("MainScene");
+            SceneFlowManager.Instance.LoadLoginScene();
         }
 
         public void QuitApplication()
@@ -64,11 +65,10 @@ namespace Jae.Manager
             {
                 NetworkManager.Singleton.Shutdown();
             }
-
 #if UNITY_EDITOR
             UnityEditor.EditorApplication.isPlaying = false;
 #else
-            Application.Quit();
+            UnityEngine.Application.Quit();
 #endif
         }
     }

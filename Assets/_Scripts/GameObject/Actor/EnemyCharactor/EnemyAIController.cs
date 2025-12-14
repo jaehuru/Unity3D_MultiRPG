@@ -6,7 +6,7 @@ using System.Collections;
 
 [RequireComponent(typeof(NavMeshAgent))]
 [RequireComponent(typeof(ICombatant))]
-public class EnemyAIController : NetworkBehaviour
+public class EnemyAIController : NetworkBehaviour, IAIController
 {
     public enum EnemyAIState { Idle, Patrol, Chase, ReturnHome, Dead }
 
@@ -34,7 +34,6 @@ public class EnemyAIController : NetworkBehaviour
         base.OnNetworkSpawn();
         if (!IsServer)
         {
-            enabled = false;
             return;
         }
 
@@ -60,11 +59,10 @@ public class EnemyAIController : NetworkBehaviour
         }
     }
 
-    void Update()
+    public void TickAI(float deltaTime)
     {
         if (_currentState == EnemyAIState.Dead || !_agent.enabled || !_agent.isOnNavMesh) return;
 
-        float deltaTime = Time.deltaTime;
         _attackTimer -= deltaTime;
 
         GameObject nearestPlayer = FindNearestPlayer();
@@ -103,7 +101,10 @@ public class EnemyAIController : NetworkBehaviour
                     if (CanNormalAttack())
                     {
                         _attackTimer = attackInterval;
-                        _combatant.GetAttackHandler()?.NormalAttack(new Jae.Common.AttackContext{ TargetNetworkObjectRef = nearestPlayer.GetComponent<NetworkObject>() });
+                        if(nearestPlayer.TryGetComponent<ICombatant>(out var targetCombatant))
+                        {
+                            CombatManager.Instance.ProcessAIAttack(_combatant, targetCombatant);
+                        }
                     }
                 }
                 else
@@ -120,6 +121,12 @@ public class EnemyAIController : NetworkBehaviour
                 }
                 break;
         }
+    }
+
+    public void SetState(AIState s)
+    {
+        // TODO: IAIController 인터페이스의 일부이지만 완전히 구현되지 않음
+        // 외부 시스템에서 상태 변화를 강제로 발생시키는 데 사용 가능 (e.g. cinematic)
     }
 
     private void SetAIState(EnemyAIState newState)

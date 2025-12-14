@@ -1,7 +1,8 @@
 using UnityEngine;
 using TMPro; 
 using UnityEngine.UI; 
-using Jae.Manager; // For AuthManager and GameManager
+using Jae.Manager; 
+using Jae.Application; 
 using Unity.Netcode;
 
 public class AuthUIController : MonoBehaviour
@@ -48,25 +49,25 @@ public class AuthUIController : MonoBehaviour
         
         startHostButton?.onClick.AddListener(() =>
         {
-            if (GameNetworkManager.Instance != null)
+            if (NetworkGameOrchestrator.Instance != null)
             {
-                GameNetworkManager.Instance.StartHost();
+                NetworkGameOrchestrator.Instance.StartHost();
             }
             else
             {
-                Debug.LogError("[AuthUIController] GameNetworkManager.Instance is not found!");
+                Debug.LogError("[AuthUIController] NetworkGameOrchestrator.Instance is not found!");
             }
         });
         
         startClientButton?.onClick.AddListener(() =>
         {
-            if (GameNetworkManager.Instance != null)
+            if (NetworkGameOrchestrator.Instance != null)
             {
-                GameNetworkManager.Instance.StartClient();
+                NetworkGameOrchestrator.Instance.StartClient();
             }
             else
             {
-                Debug.LogError("[AuthUIController] GameNetworkManager.Instance is not found!");
+                Debug.LogError("[AuthUIController] NetworkGameOrchestrator.Instance is not found!");
             }
         });
         

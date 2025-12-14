@@ -32,16 +32,20 @@ namespace Jae.Manager
 
         private void Awake()
         {
-            if (Instance != null && Instance != this)
-            {
-                Destroy(gameObject);
-            }
-            else
+            if (Instance == null)
             {
                 Instance = this;
-                _authService = new AuthService(authUrl);
-                _playerDataService = new PlayerDataService(playerDataUrl);
+                DontDestroyOnLoad(gameObject); // Ensure it persists
+                _authService = new AuthService(authUrl); // 서비스 초기화 (Awake에서 하는 것이 맞음)
+                _playerDataService = new PlayerDataService(playerDataUrl); // 서비스 초기화 (Awake에서 하는 것이 맞음)
+                Debug.Log("[PlayerSessionManager] Singleton initialized and set as DontDestroyOnLoad.");
             }
+            else if (Instance != this)
+            {
+                Debug.LogWarning("[PlayerSessionManager] Duplicate PlayerSessionManager detected. Destroying the new instance.");
+                Destroy(gameObject);
+            }
+            // else: Instance == this 인 경우 (다시 활성화 등)
         }
 
         public override void OnNetworkSpawn()
@@ -58,6 +62,15 @@ namespace Jae.Manager
         
         public void HandleConnectionApprovalCallback(NetworkManager.ConnectionApprovalRequest request, NetworkManager.ConnectionApprovalResponse response)
         {
+            // 방어 로직: 현재 인스턴스가 유효한지 확인
+            // 이 MonoBehaviour가 파괴되었거나, 비활성화되었거나, 비활성 계층에 있는 경우 StartCoroutine 호출 불가
+            if (this == null || !gameObject.activeInHierarchy || !enabled)
+            {
+                Debug.LogError("[PlayerSessionManager] HandleConnectionApprovalCallback called on a destroyed or inactive instance. Denying connection.");
+                response.Approved = false;
+                response.Pending = false;
+                return;
+            }
             StartCoroutine(ConnectionApprovalCoroutine(request, response));
         }
         
@@ -187,6 +200,19 @@ namespace Jae.Manager
             if (connectedClientsData.TryGetValue(clientId, out ClientInfo clientInfo))
             {
                 clientInfo.PlayerNetworkObject = playerNetworkObject;
+            }
+        }
+
+        public void AddClientInfo(ulong clientId, string uid, string jwtToken, Vector3 spawnPosition)
+        {
+            if (!connectedClientsData.ContainsKey(clientId))
+            {
+                connectedClientsData[clientId] = new ClientInfo { Uid = uid, JwtToken = jwtToken, PlayerSpawnPosition = spawnPosition };
+                Debug.Log($"[PlayerSessionManager] Manually added ClientInfo for Client: {clientId}, Uid: {uid}");
+            }
+            else
+            {
+                Debug.LogWarning($"[PlayerSessionManager] ClientInfo for Client: {clientId} already exists. Not adding.");
             }
         }
         

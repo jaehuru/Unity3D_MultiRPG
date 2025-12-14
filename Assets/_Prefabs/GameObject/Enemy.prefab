@@ -14,10 +14,8 @@ GameObject:
   - component: {fileID: 4798115862377463214}
   - component: {fileID: 4453776033733960439}
   - component: {fileID: 8006753678720234956}
-  - component: {fileID: 1552223133592830171}
-  - component: {fileID: 1082274808278148762}
-  - component: {fileID: 7873161066126767268}
   - component: {fileID: 4390363866741386672}
+  - component: {fileID: 2375991148978721036}
   m_Layer: 7
   m_Name: Enemy
   m_TagString: Enemy
@@ -132,7 +130,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 639909936
+  GlobalObjectIdHash: 2808268810
   InScenePlacedSourceGlobalObjectIdHash: 0
   DeferredDespawnTick: 0
   Ownership: 1
@@ -158,57 +156,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Enemy
   ShowTopMostFoldoutHeaderGroup: 1
+  attackDamage: 5
   EnemyWorldSpaceUIPrefab: {fileID: 1294471187131378791, guid: 32fe49cb62525b8408026c11e19d9764, type: 3}
-  enemyStats: {fileID: 1552223133592830171}
-  attackInterval: 2
-  chaseRange: 5
-  patrolStoppingDistance: 0.5
-  patrolRadius: 5
-  returnHomeDistance: 10
-  patrolWaitTime: 2
   respawnDelay: 5
---- !u!114 &1552223133592830171
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4780730189820231958}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7bedd4045c4258443b478b94e987bbc6, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::EnemyStats
-  ShowTopMostFoldoutHeaderGroup: 1
---- !u!114 &1082274808278148762
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4780730189820231958}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 75c33c718cf4c9e49a46120ddf20611a, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::AttackHandler
-  ShowTopMostFoldoutHeaderGroup: 1
-  attackRange: 2
-  attackDamage: 10
---- !u!114 &7873161066126767268
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4780730189820231958}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: bee8071149f94a648a08226b2e0b6524, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::DamageHandler
-  ShowTopMostFoldoutHeaderGroup: 1
-  floatingTextPrefab: {fileID: 3300571497489247501, guid: 64c3e69e4413a7448b17745c2f74503f, type: 3}
 --- !u!195 &4390363866741386672
 NavMeshAgent:
   m_ObjectHideFlags: 0
@@ -231,3 +181,22 @@ NavMeshAgent:
   m_BaseOffset: 1
   m_WalkableMask: 4294967295
   m_ObstacleAvoidanceType: 4
+--- !u!114 &2375991148978721036
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4780730189820231958}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b06a452f183280042bcb408d0cc01899, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::EnemyAIController
+  ShowTopMostFoldoutHeaderGroup: 1
+  attackInterval: 2
+  chaseRange: 10
+  patrolStoppingDistance: 0.5
+  patrolRadius: 7
+  returnHomeDistance: 15
+  patrolWaitTime: 3

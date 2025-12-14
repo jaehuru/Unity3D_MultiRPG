@@ -91,7 +91,7 @@ namespace Jae.Common
     public interface IAttackHandler
     {
         bool CanNormalAttack();
-        void NormalAttack(AttackContext ctx);
+        void NormalAttack();
         AttackType GetAttackType();
         DamageType GetDefaultDamageType();
     }
@@ -188,11 +188,6 @@ namespace Jae.Common
         void SetDestination(Vector3 pos);
         bool HasPath();
         void Stop();
-    }
-
-    public interface IMoveAuthoritative
-    {
-        void ServerApplyMovement(MovementSnapshot snap);
     }
 
     // =====================================

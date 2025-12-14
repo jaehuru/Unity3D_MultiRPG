@@ -1,7 +1,8 @@
 using Jae.Commom;
 using Unity.Netcode;
-using Jae.Common;
 using Jae.Manager;
+using UnityEngine;
+using Jae.Common;
 
 public class MovementManager : NetworkBehaviour
 {
@@ -19,20 +20,28 @@ public class MovementManager : NetworkBehaviour
         }
     }
     
-
-    [ServerRpc(InvokePermission = RpcInvokePermission.Everyone)]
-    public void ServerMove_ServerRpc(MovementSnapshot snap, ServerRpcParams rpcParams = default)
+    public void ServerMove(ulong clientId, MovementSnapshot snap) // No longer an RPC
     {
-        if (!IsServer) return;
+        if (!IsServer) return; // Still only runs on server
 
-        var clientId = rpcParams.Receive.SenderClientId;
+        // The clientId is now passed directly from the PlayerCharacter's RPC
         if (PlayerSessionManager.Instance.TryGetPlayerNetworkObject(clientId, out var playerNetworkObject))
         {
-            if (playerNetworkObject.TryGetComponent<IMoveAuthoritative>(out var mover))
-            {
-                // TODO: 여기에 서버 측 유효성 검사를 추가 (e.g., 속도 최적화, 거리 확인)
-                mover.ServerApplyMovement(snap);
-            }
+            // TODO: 여기에 서버 측 유효성 검사를 추가 (e.g., 속도 최적화, 거리 확인)
+            
+            // 회전 (서버 권위)
+            float yaw = snap.LookDelta.x * 120f * snap.DeltaTime; // Use a constant like rotationSpeed or get from StatProvider
+            playerNetworkObject.transform.Rotate(0f, yaw, 0f);
+
+            // 이동
+            float speed = 5f; // Default speed
+            if (playerNetworkObject.TryGetComponent<IStatProvider>(out var stat))
+                speed = stat.GetStat(StatType.MovementSpeed);
+
+            Vector3 moveDir = new Vector3(snap.MoveInput.x, 0, snap.MoveInput.y);
+            Vector3 worldDir = playerNetworkObject.transform.TransformDirection(moveDir);
+
+            playerNetworkObject.transform.position += worldDir * speed * snap.DeltaTime;
         }
     }
 }

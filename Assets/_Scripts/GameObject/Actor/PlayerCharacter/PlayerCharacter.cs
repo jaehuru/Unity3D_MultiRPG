@@ -9,7 +9,6 @@ using Jae.Commom;
 using Jae.Common;
 using Jae.Manager;
 
-[RequireComponent(typeof(NavMeshAgent))]
 [RequireComponent(typeof(PlayerInput))]
 [RequireComponent(typeof(PlayerController))]
 public class PlayerCharacter : NetworkBehaviour,
@@ -24,10 +23,8 @@ public class PlayerCharacter : NetworkBehaviour,
     ISaveable,
     IWorldSpaceUIProvider,
     IStatProvider,
-    IAttackHandler,
-    IMoveAuthoritative
+    IAttackHandler
 {
-    private NavMeshAgent agent;
     private readonly NetworkVariable<FixedString32Bytes> networkPlayerName = new(writePerm: NetworkVariableWritePermission.Server);
 
     // --- Stats ---
@@ -40,7 +37,7 @@ public class PlayerCharacter : NetworkBehaviour,
     // --- Interfaces ---
     private IHealth _playerHealth;
     
-    #region Interface Implementations
+#region Interface Implementations
     // IActor Implementation
     public string GetId() => OwnerClientId.ToString();
     public Transform GetTransform() => transform;
@@ -68,6 +65,7 @@ public class PlayerCharacter : NetworkBehaviour,
         {
             StatType.Health => _currentHealth.Value,
             StatType.MaxHealth => _maxHealth.Value,
+            StatType.MovementSpeed => 5f, // Default movement speed
             _ => 0f,
         };
     }
@@ -86,8 +84,6 @@ public class PlayerCharacter : NetworkBehaviour,
     // ISpawnable
     public void OnSpawn(ISpawnContext ctx)
     {
-        agent.enabled = IsServer;
-        
         if (IsServer)
         {
             if (PlayerSessionManager.Instance.TryGetClientInfo(OwnerClientId, out var clientInfo))
@@ -104,28 +100,21 @@ public class PlayerCharacter : NetworkBehaviour,
             }
         }
         
-        if (ctx != null && ctx.Point != null && agent != null && agent.enabled && IsServer)
+        // Directly set position and rotation without NavMeshAgent
+        if (ctx != null && ctx.Point != null && IsServer)
         {
-             agent.Warp(ctx.Point.GetPosition());
+             transform.position = ctx.Point.GetPosition();
+             transform.rotation = ctx.Point.GetRotation(); // Also set rotation
         }
     }
     public IRespawnPolicy GetRespawnPolicy() => new PlayerRespawnPolicy(this);
 
     // IAttackHandler
     public bool CanNormalAttack() => true; // TODO: This logic should be based on state
-    public void NormalAttack(AttackContext ctx)
+    public void NormalAttack()
     {
-        if (!IsServer || !CanNormalAttack()) return;
-        
-        if (!ctx.TargetNetworkObjectRef.TryGet(out var targetNetworkObject)) return;
-        
-        var target = targetNetworkObject.gameObject;
-
-
-        if (target.TryGetComponent<ICombatant>(out var combatant))
-        {
-            CombatManager.Instance.ProcessAttack(this, combatant);
-        }
+        //  TODO: 공격 애니메이션 재생과 같은 표현 로직만 남겨야 함
+        //  모든 실제 데미지 계산 및 적용 로직은 CombatManager로 이전됨
     }
     public AttackType GetAttackType() => AttackType.Melee;
     public DamageType GetDefaultDamageType() => DamageType.Physical;
@@ -144,27 +133,13 @@ public class PlayerCharacter : NetworkBehaviour,
     public event Action<IInventoryItem, int> OnItemRemoved;
 
     // IMovable
-    public void Move(Vector3 direction, float deltaTime) { if(agent.enabled) agent.Move(transform.TransformDirection(direction) * agent.speed * deltaTime); }
+    public void Move(Vector3 direction, float deltaTime)
+    {
+        // MovementManager.ServerMove will now directly manipulate transform.position
+    }
     public void Teleport(Vector3 pos)
     {
-        if (agent != null && agent.enabled)
-        {
-            agent.Warp(pos);
-        }
-        else
-        {
-            transform.position = pos;
-        }
-    }
-    
-    // IMoveAuthoritative
-    public void ServerApplyMovement(MovementSnapshot snap)
-    {
-        if (!IsServer) return;
-        
-        transform.rotation = snap.LookRotation;
-        Vector3 moveDir = new Vector3(snap.MoveInput.x, 0, snap.MoveInput.y);
-        Move(moveDir, snap.DeltaTime);
+        transform.position = pos;
     }
 
     // IAnimPlayable
@@ -181,9 +156,24 @@ public class PlayerCharacter : NetworkBehaviour,
     public string GetDisplayName() => networkPlayerName.Value.ToString();
     public float GetHealthRatio() => _maxHealth.Value > 0 ? _currentHealth.Value / _maxHealth.Value : 0;
     public NetworkVariable<FixedString32Bytes> CharacterName => networkPlayerName;
-    #endregion
+#endregion
 
-    #region Nested Classes (Health, Respawn Policy)
+#region Server RPCs
+    [ServerRpc]
+    public void RequestMove_ServerRpc(MovementSnapshot snap)
+    {
+        if (!IsOwner) return; // Only owner can request movement
+
+        // The RPC is called on the server.
+        // The MovementManager (which is server-owned) handles the actual move logic.
+        if (MovementManager.Instance != null)
+        {
+            MovementManager.Instance.ServerMove(OwnerClientId, snap);
+        }
+    }
+#endregion
+
+#region Nested Classes (Health, Respawn Policy)
     private class PlayerHealth : IHealth
     {
         private readonly PlayerCharacter _owner;
@@ -240,7 +230,6 @@ public class PlayerCharacter : NetworkBehaviour,
 
     private void Awake()
     {
-        agent = GetComponent<NavMeshAgent>();
         _playerHealth = new PlayerHealth(this);
     }
 

@@ -1,12 +1,13 @@
 using Unity.Netcode;
 using System.Collections.Generic;
-
+using Jae.Common;
+using UnityEngine;
 
 public class AIManager : NetworkBehaviour
 {
     public static AIManager Instance { get; private set; }
 
-    private readonly List<EnemyAIController> _aiControllers = new List<EnemyAIController>();
+    private readonly List<IAIController> _aiControllers = new List<IAIController>();
 
     private void Awake()
     {
@@ -23,11 +24,21 @@ public class AIManager : NetworkBehaviour
     public override void OnNetworkSpawn()
     {
         base.OnNetworkSpawn();
-        // This manager is server-only.
         this.enabled = IsServer;
     }
 
-    public void Register(EnemyAIController controller)
+    private void Update()
+    {
+        if (!IsServer) return;
+        
+        for (int i = _aiControllers.Count - 1; i >= 0; i--)
+        {
+            // TODO: Add pooling for safety if controllers can be destroyed mid-loop
+            _aiControllers[i].TickAI(Time.deltaTime);
+        }
+    }
+
+    public void Register(IAIController controller)
     {
         if (!IsServer || controller == null) return;
         if (!_aiControllers.Contains(controller))
@@ -36,7 +47,7 @@ public class AIManager : NetworkBehaviour
         }
     }
 
-    public void Unregister(EnemyAIController controller)
+    public void Unregister(IAIController controller)
     {
         if (!IsServer || controller == null) return;
         if (_aiControllers.Contains(controller))
@@ -44,8 +55,4 @@ public class AIManager : NetworkBehaviour
             _aiControllers.Remove(controller);
         }
     }
-
-    // AIManager는 이제 개별 AI의 상태를 직접 제어하지 않습니다.
-    // 리스폰/디스폰 시 AI 활성화/비활성화는 SpawnManager가
-    // EnemyAIController 컴포넌트를 직접 활성화/비활성화하는 방식으로 처리됩니다.
 }
