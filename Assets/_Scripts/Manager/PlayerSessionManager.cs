@@ -46,17 +46,7 @@ namespace Jae.Manager
             // else: Instance == this 인 경우 (다시 활성화 등)
         }
 
-        public override void OnNetworkSpawn()
-        {
-            if (!IsServer) return;
-            base.OnNetworkSpawn();
-        }
 
-        public override void OnNetworkDespawn()
-        {
-            if (!IsServer) return;
-            base.OnNetworkDespawn();
-        }
         
         public void HandleConnectionApprovalCallback(NetworkManager.ConnectionApprovalRequest request, NetworkManager.ConnectionApprovalResponse response)
         {

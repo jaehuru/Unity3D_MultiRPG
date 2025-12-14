@@ -1,5 +1,5 @@
 using System;
-using Jae.Commom;
+using Jae.Common;
 using UnityEngine;
 using Unity.Netcode;
 
@@ -20,6 +20,12 @@ namespace Jae.Common
         ISpawnPoint Point { get; }
         ISpawnPolicy SpawnPolicy { get; }
         IRespawnPolicy RespawnPolicy { get; }
+    }
+    
+    public interface IStateActivable
+    {
+        void Activate();
+        void Deactivate();
     }
 
     // =====================================

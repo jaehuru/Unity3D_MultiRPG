@@ -3,7 +3,6 @@ using TMPro;
 using UnityEngine.UI; 
 using Jae.Manager; 
 using Jae.Application; 
-using Unity.Netcode;
 
 public class AuthUIController : MonoBehaviour
 {
@@ -128,20 +127,7 @@ public class AuthUIController : MonoBehaviour
         Debug.LogError("[AuthUIController] Registration failed callback: " + message);
     }
     
-    private void HandleClientDisconnect(ulong clientId)
-    {
-        // This is still using NetworkManager, which is fine
-        // A dedicated NetworkUIController might be better for this in future
-        if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsServer) return; 
 
-        string reason = NetworkManager.Singleton?.DisconnectReason; // Use null conditional operator
-        if (string.IsNullOrEmpty(reason))
-        {
-            reason = "Failed to connect or lost connection.";
-        }
-        
-        ShowLoginPanel(reason);
-    }
     
     // ============================================================
     // PANEL DISPLAY METHODS
@@ -160,7 +146,7 @@ public class AuthUIController : MonoBehaviour
         }
         if (registerStatusText != null) registerStatusText.text = "Registering...";
         
-        AuthManager.Instance.AttemptRegister(username, email, password);
+        _ = AuthManager.Instance.AttemptRegister(username, email, password);
     }
     
     public void OnLoginButtonClick()
@@ -177,7 +163,7 @@ public class AuthUIController : MonoBehaviour
         if (loginStatusText != null) loginStatusText.text = "Logging in...";
         if (connectionStatusText != null) connectionStatusText.text = "";
         
-        AuthManager.Instance.AttemptLogin(username, password);
+        _ = AuthManager.Instance.AttemptLogin(username, password);
     }
 
     public void OnQuitApplicationButtonClick()

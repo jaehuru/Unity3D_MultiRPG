@@ -2,8 +2,7 @@ using Unity.Netcode;
 using System.Collections.Generic;
 using Jae.Common;
 using UnityEngine;
-using TMPro;
-using UnityEngine.UI;
+
 
 namespace Jae.Manager
 {

@@ -3,56 +3,59 @@ using System.Collections.Generic;
 using Jae.Common;
 using UnityEngine;
 
-public class AIManager : NetworkBehaviour
+namespace Jae.Manager
 {
-    public static AIManager Instance { get; private set; }
-
-    private readonly List<IAIController> _aiControllers = new List<IAIController>();
-
-    private void Awake()
+    public class AIManager : NetworkBehaviour
     {
-        if (Instance != null && Instance != this)
+        public static AIManager Instance { get; private set; }
+
+        private readonly List<IAIController> _aiControllers = new List<IAIController>();
+
+        private void Awake()
         {
-            Destroy(gameObject);
+            if (Instance != null && Instance != this)
+            {
+                Destroy(gameObject);
+            }
+            else
+            {
+                Instance = this;
+            }
         }
-        else
+
+        public override void OnNetworkSpawn()
         {
-            Instance = this;
+            base.OnNetworkSpawn();
+            this.enabled = IsServer;
         }
-    }
 
-    public override void OnNetworkSpawn()
-    {
-        base.OnNetworkSpawn();
-        this.enabled = IsServer;
-    }
-
-    private void Update()
-    {
-        if (!IsServer) return;
-        
-        for (int i = _aiControllers.Count - 1; i >= 0; i--)
+        private void Update()
         {
-            // TODO: Add pooling for safety if controllers can be destroyed mid-loop
-            _aiControllers[i].TickAI(Time.deltaTime);
+            if (!IsServer) return;
+
+            for (int i = _aiControllers.Count - 1; i >= 0; i--)
+            {
+                // TODO: Add pooling for safety if controllers can be destroyed mid-loop
+                _aiControllers[i].TickAI(Time.deltaTime);
+            }
         }
-    }
 
-    public void Register(IAIController controller)
-    {
-        if (!IsServer || controller == null) return;
-        if (!_aiControllers.Contains(controller))
+        public void Register(IAIController controller)
         {
-            _aiControllers.Add(controller);
+            if (!IsServer || controller == null) return;
+            if (!_aiControllers.Contains(controller))
+            {
+                _aiControllers.Add(controller);
+            }
         }
-    }
 
-    public void Unregister(IAIController controller)
-    {
-        if (!IsServer || controller == null) return;
-        if (_aiControllers.Contains(controller))
+        public void Unregister(IAIController controller)
         {
-            _aiControllers.Remove(controller);
+            if (!IsServer || controller == null) return;
+            if (_aiControllers.Contains(controller))
+            {
+                _aiControllers.Remove(controller);
+            }
         }
     }
 }

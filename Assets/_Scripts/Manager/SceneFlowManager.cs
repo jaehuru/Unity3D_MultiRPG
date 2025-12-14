@@ -2,6 +2,7 @@ using UnityEngine;
 using Unity.Netcode;
 using UnityEngine.SceneManagement;
 using System;
+using Jae.Common;
 
 namespace Jae.Manager
 {
@@ -72,8 +73,8 @@ namespace Jae.Manager
                 return;
             }
 
-            NetworkManager.Singleton.SceneManager.LoadScene("GameScene", LoadSceneMode.Single);
-            Debug.Log("[SceneManager] Attempting to load GameScene.");
+            NetworkManager.Singleton.SceneManager.LoadScene(SceneNames.GameScene, LoadSceneMode.Single);
+            Debug.Log($"[SceneManager] Attempting to load {SceneNames.GameScene}.");
         }
 
         public void LoadLoginScene()
@@ -81,20 +82,20 @@ namespace Jae.Manager
             if (NetworkManager.Singleton == null)
             {
                 Debug.LogError("[SceneManager] NetworkManager.Singleton is null. Cannot load login scene.");
-                UnityEngine.SceneManagement.SceneManager.LoadScene("MainScene", UnityEngine.SceneManagement.LoadSceneMode.Single);
-                Debug.LogWarning("[SceneManager] NetworkManager not found, falling back to regular scene load for MainScene (Login Scene).");
+                UnityEngine.SceneManagement.SceneManager.LoadScene(SceneNames.MainScene, UnityEngine.SceneManagement.LoadSceneMode.Single);
+                Debug.LogWarning($"[SceneManager] NetworkManager not found, falling back to regular scene load for {SceneNames.MainScene} (Login Scene).");
                 return;
             }
 
             if (NetworkManager.Singleton.IsListening)
             {
-                NetworkManager.Singleton.SceneManager.LoadScene("MainScene", LoadSceneMode.Single);
-                Debug.Log("[SceneManager] Attempting to load MainScene (Login Scene) via NetworkSceneManager.");
+                NetworkManager.Singleton.SceneManager.LoadScene(SceneNames.MainScene, LoadSceneMode.Single);
+                Debug.Log($"[SceneManager] Attempting to load {SceneNames.MainScene} (Login Scene) via NetworkSceneManager.");
             }
             else
             {
-                UnityEngine.SceneManagement.SceneManager.LoadScene("MainScene", UnityEngine.SceneManagement.LoadSceneMode.Single);
-                Debug.Log("[SceneManager] Attempting to load MainScene (Login Scene) via regular SceneManager.");
+                UnityEngine.SceneManagement.SceneManager.LoadScene(SceneNames.MainScene, UnityEngine.SceneManagement.LoadSceneMode.Single);
+                Debug.Log($"[SceneManager] Attempting to load {SceneNames.MainScene} (Login Scene) via regular SceneManager.");
             }
         }
     }

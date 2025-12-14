@@ -1,8 +1,9 @@
 using UnityEngine;
 using Unity.Netcode;
 using UnityEngine.AI;
-using Jae.Common;
 using System.Collections;
+using Jae.Common;
+using Jae.Manager;
 
 [RequireComponent(typeof(NavMeshAgent))]
 [RequireComponent(typeof(ICombatant))]
@@ -12,6 +13,7 @@ public class EnemyAIController : NetworkBehaviour, IAIController
 
     [Header("AI Settings")]
     [SerializeField] private float attackInterval = 2f;
+    [SerializeField] private float attackRange = 2f;
     [SerializeField] private float chaseRange = 10f;
     [SerializeField] private float patrolStoppingDistance = 0.5f;
     [SerializeField] private float patrolRadius = 7f;
@@ -87,12 +89,6 @@ public class EnemyAIController : NetworkBehaviour, IAIController
                     break;
                 }
                 float distanceToPlayer = Vector3.Distance(_transform.position, nearestPlayer.transform.position);
-
-                float attackRange = 2.0f;
-                if (_combatant.GetAttackHandler() != null)
-                {
-                    attackRange = 2.0f;
-                }
 
                 if (distanceToPlayer <= attackRange)
                 {

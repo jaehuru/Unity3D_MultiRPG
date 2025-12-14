@@ -1,4 +1,4 @@
-using Jae.Commom;
+using Jae.Common;
 using UnityEngine;
 using Unity.Netcode;
 using UnityEngine.InputSystem;
@@ -69,7 +69,7 @@ public class PlayerController : NetworkBehaviour
             _playerCharacter.RequestMove_ServerRpc(snapshot);
         } else {
             // Error handling can remain if _playerCharacter can legitimately be null
-            // Debug.LogError($"[PlayerController] _playerCharacter is null in HandleOwnerMovement!"); // Keep this specific error if it's a real problem
+            Debug.LogError($"[PlayerController] _playerCharacter is null in HandleOwnerMovement!"); // Keep this specific error if it's a real problem
         }
     }
 

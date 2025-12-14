@@ -22,15 +22,7 @@ namespace Jae.Manager
             }
         }
 
-        public override void OnNetworkSpawn()
-        {
-            // This is a global manager, it should persist but only execute logic on the appropriate side.
-        }
-        
-        public override void OnNetworkDespawn()
-        {
-            // Cleanup server-side subscriptions if any
-        }
+
 
         public void RequestLogout()
         {
