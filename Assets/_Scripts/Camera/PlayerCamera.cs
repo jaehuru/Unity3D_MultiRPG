@@ -1,5 +1,6 @@
 using UnityEngine;
 using Unity.Netcode;
+using Jae.Manager; // Add this using directive
 
 public class PlayerCamera : MonoBehaviour
 {
@@ -21,8 +22,22 @@ public class PlayerCamera : MonoBehaviour
     private float _xRotation = 0f;
     private bool _isFirstPerson = true;
 
+    void Awake() // Changed from Start()
+    {
+        // Register the camera with the CameraManager
+        if (CameraManager.Instance != null)
+        {
+            CameraManager.Instance.RegisterMainCamera(GetComponent<Camera>());
+        }
+        else
+        {
+            Debug.LogError("[PlayerCamera] CameraManager.Instance is not found. Make sure a CameraManager is in the scene.");
+        }
+    }
+
     void Start()
     {
+        // Cursor lock and visibility should still be in Start() or a dedicated input setup
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
     }
@@ -70,5 +85,14 @@ public class PlayerCamera : MonoBehaviour
     public void SwitchView(bool isFirstPersonView)
     {
         _isFirstPerson = isFirstPersonView;
+    }
+
+    private void OnDestroy()
+    {
+        // Unregister the camera when this object is destroyed
+        if (CameraManager.Instance != null)
+        {
+            CameraManager.Instance.UnregisterMainCamera();
+        }
     }
 }

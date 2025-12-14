@@ -5,6 +5,7 @@ using Unity.Netcode;
 using Unity.Collections;
 using UnityEngine.AI;
 using Jae.Common;
+using Jae.Manager;
 
 [RequireComponent(typeof(NavMeshAgent))]
 [RequireComponent(typeof(EnemyAIController))]
@@ -186,10 +187,18 @@ public class EnemyCharacter : NetworkBehaviour,
     public override void OnNetworkSpawn()
     {
         base.OnNetworkSpawn();
+        if (WorldSpaceUIManager.Instance != null)
+        {
+            WorldSpaceUIManager.Instance.RegisterUIProvider(NetworkObjectId, this);
+        }
     }
 
     public override void OnNetworkDespawn()
     {
+        if (WorldSpaceUIManager.Instance != null)
+        {
+            WorldSpaceUIManager.Instance.UnregisterUIProvider(NetworkObjectId);
+        }
         base.OnNetworkDespawn();
     }
 }

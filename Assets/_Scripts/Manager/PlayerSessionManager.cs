@@ -169,10 +169,7 @@ namespace Jae.Manager
             {
                 PlayerData dataToSave = new PlayerData(clientInfo.PlayerNetworkObject.transform.position);
                 bool saveSuccess = await _playerDataService.SavePlayerData(clientInfo.JwtToken, dataToSave);
-                if (!saveSuccess)
-                {
-                    Debug.LogWarning($"[PlayerSessionManager] Failed to save data for uid {clientInfo.Uid} on disconnect.");
-                }
+                // if (!saveSuccess) { Debug.LogWarning($"[PlayerSessionManager] Failed to save data for uid {clientInfo.Uid} on disconnect."); } // Log Warning
             }
         }
         
@@ -205,10 +202,11 @@ namespace Jae.Manager
             if (!connectedClientsData.ContainsKey(clientId))
             {
                 connectedClientsData[clientId] = new ClientInfo { Uid = uid, JwtToken = jwtToken, PlayerSpawnPosition = spawnPosition };
+                // Debug.Log($"[PlayerSessionManager] Manually added ClientInfo for Client: {clientId}, Uid: {uid}"); // Log removed
             }
             else
             {
-                Debug.LogWarning($"[PlayerSessionManager] ClientInfo for Client: {clientId} already exists. Not adding.");
+                // Debug.LogWarning($"[PlayerSessionManager] ClientInfo for Client: {clientId} already exists. Not adding."); // Log removed
             }
         }
         
@@ -224,10 +222,7 @@ namespace Jae.Manager
             {
                 PlayerData dataToSave = new PlayerData(position);
                 bool saveSuccess = await _playerDataService.SavePlayerData(clientInfo.JwtToken, dataToSave);
-                if (!saveSuccess)
-                {
-                    Debug.LogWarning($"[PlayerSessionManager] Failed to autosave position for uid {clientInfo.Uid}.");
-                }
+                // if (!saveSuccess) { Debug.LogWarning($"[PlayerSessionManager] Failed to autosave position for uid {clientInfo.Uid}."); } // Log removed
             }
         }
     }

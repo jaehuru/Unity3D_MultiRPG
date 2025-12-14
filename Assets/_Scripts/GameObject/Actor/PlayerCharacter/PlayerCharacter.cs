@@ -4,6 +4,7 @@ using UnityEngine.AI;
 using UnityEngine.InputSystem;
 using Unity.Collections;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using Jae.Commom;
 using Jae.Common;
@@ -234,15 +235,27 @@ public class PlayerCharacter : NetworkBehaviour,
     public override void OnNetworkSpawn()
     {
         base.OnNetworkSpawn();
+        // UI 등록을 한 프레임 지연시켜 Netcode의 PlayerObject가 설정될 시간을 줍니다.
+        StartCoroutine(RegisterUIAfterFrame());
+    }
+
+    private IEnumerator RegisterUIAfterFrame()
+    {
+        // Netcode의 내부 상태가 업데이트되도록 한 프레임 기다립니다.
+        yield return null;
+
+        if (WorldSpaceUIManager.Instance != null)
+        {
+            WorldSpaceUIManager.Instance.RegisterUIProvider(NetworkObjectId, this);
+        }
     }
 
     public override void OnNetworkDespawn()
     {
-        base.OnNetworkDespawn();
-        
-        if (IsClient && WorldSpaceUIManager.Instance != null)
+        if (WorldSpaceUIManager.Instance != null)
         {
             WorldSpaceUIManager.Instance.UnregisterUIProvider(NetworkObjectId);
         }
+        base.OnNetworkDespawn();
     }
 }

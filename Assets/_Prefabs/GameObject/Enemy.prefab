@@ -157,7 +157,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Enemy
   ShowTopMostFoldoutHeaderGroup: 1
   attackDamage: 5
-  EnemyWorldSpaceUIPrefab: {fileID: 1294471187131378791, guid: 32fe49cb62525b8408026c11e19d9764, type: 3}
+  EnemyWorldSpaceUIPrefab: {fileID: 5510429559033185560, guid: 5ac400808846303458af9cc3ead4fab9, type: 3}
   respawnDelay: 5
 --- !u!195 &4390363866741386672
 NavMeshAgent:

@@ -357,9 +357,10 @@ namespace Jae.Common
         event Action<int> OnResourceChanged;
     }
 
-    public interface IWorldSpaceUIProvider
+    public interface IWorldSpaceUIProvider : IActor
     {
         string GetDisplayName();
         float GetHealthRatio();
+        GameObject WorldSpaceUIPrefab { get; } // Add this line
     }
 }

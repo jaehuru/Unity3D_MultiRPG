@@ -15,7 +15,7 @@ GameObject:
   - component: {fileID: 1269189494472689818}
   m_Layer: 6
   m_Name: Player Camera
-  m_TagString: Untagged
+  m_TagString: MainCamera
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -48,7 +48,7 @@ Camera:
   m_BackGroundColor: {r: 0.19215687, g: 0.3019608, b: 0.4745098, a: 0}
   m_projectionMatrixMode: 1
   m_GateFitMode: 2
-  m_FOVAxisMode: 0
+  m_FOVAxisMode: 1
   m_Iso: 200
   m_ShutterSpeed: 0.005
   m_Aperture: 16
@@ -68,7 +68,7 @@ Camera:
     height: 1
   near clip plane: 0.3
   far clip plane: 1000
-  field of view: 60
+  field of view: 88.50715
   orthographic: 0
   orthographic size: 5
   m_Depth: 0
@@ -477,7 +477,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerController
   ShowTopMostFoldoutHeaderGroup: 1
-  playerWorldSpaceUIPrefab: {fileID: 1294471187131378791, guid: e173e6ce4f8dc4b758eb9e8065668f80, type: 3}
+  playerWorldSpaceUIPrefab: {fileID: 5510429559033185560, guid: 5ac400808846303458af9cc3ead4fab9, type: 3}
 --- !u!114 &4973249721545785225
 MonoBehaviour:
   m_ObjectHideFlags: 0

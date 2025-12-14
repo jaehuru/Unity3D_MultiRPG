@@ -1707,6 +1707,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 3666994800436813725, guid: 15abe87223bd0ef4caf325dede9e6bd8, type: 3}
+      propertyPath: worldSpaceUIPrefab
+      value: 
+      objectReference: {fileID: 5510429559033185560, guid: 5ac400808846303458af9cc3ead4fab9, type: 3}
     - target: {fileID: 4675827640583573799, guid: 15abe87223bd0ef4caf325dede9e6bd8, type: 3}
       propertyPath: m_Name
       value: WorldSpaceUIManager
@@ -2066,11 +2070,11 @@ RectTransform:
   - {fileID: 2006253540379367109}
   m_Father: {fileID: 1132625743}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 1}
-  m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 60, y: -20}
-  m_SizeDelta: {x: 500, y: 60}
-  m_Pivot: {x: 0, y: 1}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 50, y: 50}
+  m_SizeDelta: {x: 300, y: 60}
+  m_Pivot: {x: 0, y: 0}
 --- !u!1001 &5863872403518247357
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -2141,7 +2145,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 0.4811321, g: 0.28822535, b: 0.28822535, a: 0.5882353}
+  m_Color: {r: 0.1, g: 0.1, b: 0.1, a: 0.9019608}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
