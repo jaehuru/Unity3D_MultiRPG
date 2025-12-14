@@ -13,7 +13,6 @@ public class EnemyAIController : NetworkBehaviour, IAIController
 
     [Header("AI Settings")]
     [SerializeField] private float attackInterval = 2f;
-    [SerializeField] private float attackRange = 2f;
     [SerializeField] private float chaseRange = 10f;
     [SerializeField] private float patrolStoppingDistance = 0.5f;
     [SerializeField] private float patrolRadius = 7f;
@@ -89,6 +88,7 @@ public class EnemyAIController : NetworkBehaviour, IAIController
                     break;
                 }
                 float distanceToPlayer = Vector3.Distance(_transform.position, nearestPlayer.transform.position);
+                float attackRange = _combatant.GetStats()?.GetStat(StatType.AttackRange) ?? 1f;
 
                 if (distanceToPlayer <= attackRange)
                 {

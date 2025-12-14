@@ -36,6 +36,7 @@ public class EnemyCharacter : NetworkBehaviour,
 
     [Header("Combat Settings")]
     [SerializeField] private int attackDamage = 5;
+    [SerializeField] private float attackRange = 2f;
 
     [Header("UI Settings")]
     [SerializeField] private GameObject EnemyWorldSpaceUIPrefab;
@@ -109,6 +110,7 @@ public class EnemyCharacter : NetworkBehaviour,
             case StatType.Health: return _currentHealth.Value;
             case StatType.MaxHealth: return _maxHealth.Value;
             case StatType.AttackDamage: return attackDamage;
+            case StatType.AttackRange: return attackRange;
             default: return 0f;
         }
     }

@@ -1,7 +1,5 @@
 using UnityEngine;
-using Unity.Netcode;
-using Jae.Manager; // Add this using directive
-
+using Jae.Manager;
 public class PlayerCamera : MonoBehaviour
 {
     [Header("Target Settings")]
@@ -22,9 +20,8 @@ public class PlayerCamera : MonoBehaviour
     private float _xRotation = 0f;
     private bool _isFirstPerson = true;
 
-    void Awake() // Changed from Start()
+    void Awake()
     {
-        // Register the camera with the CameraManager
         if (CameraManager.Instance != null)
         {
             CameraManager.Instance.RegisterMainCamera(GetComponent<Camera>());
@@ -37,7 +34,6 @@ public class PlayerCamera : MonoBehaviour
 
     void Start()
     {
-        // Cursor lock and visibility should still be in Start() or a dedicated input setup
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
     }

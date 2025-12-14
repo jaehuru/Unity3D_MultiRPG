@@ -47,8 +47,7 @@ namespace Jae.Manager
                 return;
             }
 
-            float attackRange =
-                attacker.GetAttackHandler()?.GetAttackType() == AttackType.Melee ? 2.0f : 20.0f; // TODO: Get range from stats/weapon
+            float attackRange = attacker.GetStats()?.GetStat(StatType.AttackRange) ?? 1.0f; // Get range from stats
 
             if (Physics.Raycast(attackerTransform.position + Vector3.up * 0.5f, attackerTransform.forward, out var hit, attackRange + 1f))
             {
@@ -154,7 +153,7 @@ namespace Jae.Manager
 
             // TODO: 타격 유효성 검사 로직을 구현(e.g., 거리 확인, 시야 확보)
             float distance = Vector3.Distance((attacker as IActor).GetTransform().position, (target as IActor).GetTransform().position);
-            float attackRange = attacker.GetAttackHandler()?.GetAttackType() == AttackType.Melee ? 2.0f : 20.0f;
+            float attackRange = attacker.GetStats()?.GetStat(StatType.AttackRange) ?? 1.0f; // Get range from stats
 
             return distance <= attackRange;
         }

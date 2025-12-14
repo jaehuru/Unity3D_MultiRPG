@@ -91,7 +91,7 @@ namespace Jae.Common
     public struct AttackContext
     {
         public NetworkObjectReference TargetNetworkObjectRef;
-        // Add other relevant attack parameters here (e.g., skillId, attackType, etc.)
+        //TODO: 공격 관련 다른 매개변수 추가 (e.g., skillId, attackType, etc.)
     }
 
     public interface IAttackHandler
@@ -367,6 +367,6 @@ namespace Jae.Common
     {
         string GetDisplayName();
         float GetHealthRatio();
-        GameObject WorldSpaceUIPrefab { get; } // Add this line
+        GameObject WorldSpaceUIPrefab { get; }
     }
 }

@@ -1,6 +1,5 @@
 using System;
 using UnityEngine;
-using Jae.Common;
 using Unity.Netcode;
 
 namespace Jae.Common

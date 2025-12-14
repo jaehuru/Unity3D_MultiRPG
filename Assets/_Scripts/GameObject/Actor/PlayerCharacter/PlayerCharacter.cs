@@ -32,6 +32,10 @@ public class PlayerCharacter : NetworkBehaviour,
     private readonly NetworkVariable<float> _currentHealth = new(100f, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
     private readonly NetworkVariable<float> _maxHealth = new(100f, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
     
+    [Header("Combat Settings")]
+    [SerializeField] private float attackDamage = 10f;
+    [SerializeField] private float attackRange = 2f;
+
     [Header("World Space UI")]
     [SerializeField] private GameObject playerWorldSpaceUIPrefab;
 
@@ -81,6 +85,8 @@ public class PlayerCharacter : NetworkBehaviour,
             StatType.Health => _currentHealth.Value,
             StatType.MaxHealth => _maxHealth.Value,
             StatType.MovementSpeed => 2.5f,
+            StatType.AttackDamage => attackDamage,
+            StatType.AttackRange => attackRange,
             _ => 0f,
         };
     }
