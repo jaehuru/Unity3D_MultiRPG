@@ -20,21 +20,18 @@ public class MovementManager : NetworkBehaviour
         }
     }
     
-    public void ServerMove(ulong clientId, MovementSnapshot snap) // No longer an RPC
+    public void ServerMove(ulong clientId, MovementSnapshot snap)
     {
-        if (!IsServer) return; // Still only runs on server
-
-        // The clientId is now passed directly from the PlayerCharacter's RPC
+        if (!IsServer) return;
+        
         if (PlayerSessionManager.Instance.TryGetPlayerNetworkObject(clientId, out var playerNetworkObject))
         {
             // TODO: 여기에 서버 측 유효성 검사를 추가 (e.g., 속도 최적화, 거리 확인)
             
-            // 회전 (서버 권위)
-            float yaw = snap.LookDelta.x * 120f * snap.DeltaTime; // Use a constant like rotationSpeed or get from StatProvider
+            float yaw = snap.LookDelta.x * snap.RotationSpeed * snap.DeltaTime;
             playerNetworkObject.transform.Rotate(0f, yaw, 0f);
-
-            // 이동
-            float speed = 5f; // Default speed
+            
+            float speed = 5f;
             if (playerNetworkObject.TryGetComponent<IStatProvider>(out var stat))
                 speed = stat.GetStat(StatType.MovementSpeed);
 

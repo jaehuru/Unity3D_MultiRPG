@@ -65,7 +65,7 @@ public class PlayerCharacter : NetworkBehaviour,
         {
             StatType.Health => _currentHealth.Value,
             StatType.MaxHealth => _maxHealth.Value,
-            StatType.MovementSpeed => 5f, // Default movement speed
+            StatType.MovementSpeed => 2.5f,
             _ => 0f,
         };
     }
@@ -162,8 +162,6 @@ public class PlayerCharacter : NetworkBehaviour,
     [ServerRpc]
     public void RequestMove_ServerRpc(MovementSnapshot snap)
     {
-        if (!IsOwner) return; // Only owner can request movement
-
         // The RPC is called on the server.
         // The MovementManager (which is server-owned) handles the actual move logic.
         if (MovementManager.Instance != null)

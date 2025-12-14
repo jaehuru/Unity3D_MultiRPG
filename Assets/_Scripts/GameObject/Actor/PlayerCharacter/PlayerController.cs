@@ -8,7 +8,7 @@ using Jae.Manager;
 public class PlayerController : NetworkBehaviour
 {
     [Header("Movement Settings")]
-    [SerializeField] private float rotationSpeed = 120f;
+    [SerializeField] private float rotationSpeed = 80f;
 
     [Header("Auto-Save Settings")]
     [Tooltip("자동 저장 간격(초)")]
@@ -56,19 +56,20 @@ public class PlayerController : NetworkBehaviour
 
     private void HandleOwnerMovement()
     {
-        // 클라이언트에서 직접 Transform을 조작하지 않고, 서버로 LookDelta를 전달합니다.
-        // Transform 회전은 서버에서 처리합니다.
-        
         var snapshot = new MovementSnapshot
         {
             MoveInput = _moveInput,
-            LookDelta = _lookInput, // LookDelta를 스냅샷에 포함
+            LookDelta = _lookInput,
+            RotationSpeed = rotationSpeed, // Add rotationSpeed to snapshot
             DeltaTime = Time.deltaTime
         };
         
         if (_playerCharacter != null)
         {
             _playerCharacter.RequestMove_ServerRpc(snapshot);
+        } else {
+            // Error handling can remain if _playerCharacter can legitimately be null
+            // Debug.LogError($"[PlayerController] _playerCharacter is null in HandleOwnerMovement!"); // Keep this specific error if it's a real problem
         }
     }
 

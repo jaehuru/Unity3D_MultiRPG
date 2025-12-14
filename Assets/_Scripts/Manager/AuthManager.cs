@@ -22,7 +22,7 @@ namespace Jae.Manager
         private string _jwtToken;
         private string _currentUserId; // Add this field
         private const string JWT_TOKEN_KEY = "JwtToken";
-        private const string USER_ID_KEY = "UserId"; // Add this key
+        private const string USER_ID_KEY = "UserId";
 
         private void Awake()
         {
@@ -48,7 +48,7 @@ namespace Jae.Manager
             return _jwtToken;
         }
 
-        public string GetUserId() // Add this method
+        public string GetUserId()
         {
             if (string.IsNullOrEmpty(_currentUserId))
             {
@@ -57,28 +57,28 @@ namespace Jae.Manager
             return _currentUserId;
         }
 
-        private void StoreToken(string token, string userId) // Modified to accept userId
+        private void StoreToken(string token, string userId)
         {
             _jwtToken = token;
-            _currentUserId = userId; // Store userId
+            _currentUserId = userId;
             PlayerPrefs.SetString(JWT_TOKEN_KEY, token);
-            PlayerPrefs.SetString(USER_ID_KEY, userId); // Store userId in PlayerPrefs
+            PlayerPrefs.SetString(USER_ID_KEY, userId);
             PlayerPrefs.Save();
         }
 
         public void ClearStoredToken()
         {
             PlayerPrefs.DeleteKey(JWT_TOKEN_KEY);
-            PlayerPrefs.DeleteKey(USER_ID_KEY); // Clear userId
+            PlayerPrefs.DeleteKey(USER_ID_KEY);
             PlayerPrefs.Save();
             _jwtToken = "";
-            _currentUserId = ""; // Clear userId
+            _currentUserId = "";
         }
-        
+
         private void LoadTokenFromPrefs()
         {
             _jwtToken = PlayerPrefs.GetString(JWT_TOKEN_KEY, "");
-            _currentUserId = PlayerPrefs.GetString(USER_ID_KEY, ""); // Load userId
+            _currentUserId = PlayerPrefs.GetString(USER_ID_KEY, "");
         }
 
         public async void AttemptLogin(string username, string password)
@@ -90,12 +90,12 @@ namespace Jae.Manager
                 AuthValidationResult validationResult = await _authService.ValidateToken(result.Token);
                 if (validationResult.IsValid)
                 {
-                    StoreToken(result.Token, validationResult.UserId); // Store both token and userId
+                    StoreToken(result.Token, validationResult.UserId);
                     OnLoginSuccess.Invoke();
                 }
                 else
                 {
-                    OnLoginFailure.Invoke(validationResult.ErrorMessage); // If token validation fails
+                    OnLoginFailure.Invoke(validationResult.ErrorMessage);
                 }
             }
             else

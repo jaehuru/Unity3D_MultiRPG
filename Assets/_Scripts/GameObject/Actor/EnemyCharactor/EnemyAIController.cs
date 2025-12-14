@@ -126,7 +126,7 @@ public class EnemyAIController : NetworkBehaviour, IAIController
     public void SetState(AIState s)
     {
         // TODO: IAIController 인터페이스의 일부이지만 완전히 구현되지 않음
-        // 외부 시스템에서 상태 변화를 강제로 발생시키는 데 사용 가능 (e.g. cinematic)
+        // 외부 시스템에서 상태 변화를 강제로 발생시키는 데 사용 가능 (e.g. 시네마틱)
     }
 
     private void SetAIState(EnemyAIState newState)

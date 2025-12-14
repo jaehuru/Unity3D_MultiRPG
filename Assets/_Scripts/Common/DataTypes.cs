@@ -60,13 +60,15 @@ namespace Jae.Commom
     public struct MovementSnapshot : INetworkSerializable
     {
         public Vector2 MoveInput;
-        public Vector2 LookDelta; // Added LookDelta
+        public Vector2 LookDelta;
+        public float RotationSpeed;
         public float DeltaTime;
 
         public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
         {
             serializer.SerializeValue(ref MoveInput);
-            serializer.SerializeValue(ref LookDelta); // Serialize LookDelta
+            serializer.SerializeValue(ref LookDelta);
+            serializer.SerializeValue(ref RotationSpeed);
             serializer.SerializeValue(ref DeltaTime);
         }
     }

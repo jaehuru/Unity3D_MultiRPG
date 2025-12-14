@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 
 namespace Jae.UnityAdapter
 {
-    // A generic result object for web requests.
     public struct WebRequestResult
     {
         public bool Success;
@@ -14,9 +13,7 @@ namespace Jae.UnityAdapter
         public long ResponseCode;
         public string Error;
     }
-
-    // This is a MonoBehaviour Singleton responsible for executing web requests within the Unity environment.
-    // It abstracts away the use of UnityWebRequest from the pure C# service classes.
+    
     public class WebRequestAdapter : MonoBehaviour
     {
         public static WebRequestAdapter Instance { get; private set; }

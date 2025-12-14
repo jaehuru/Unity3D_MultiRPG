@@ -38,11 +38,9 @@ namespace Jae.Manager
                 DontDestroyOnLoad(gameObject); // Ensure it persists
                 _authService = new AuthService(authUrl); // 서비스 초기화 (Awake에서 하는 것이 맞음)
                 _playerDataService = new PlayerDataService(playerDataUrl); // 서비스 초기화 (Awake에서 하는 것이 맞음)
-                Debug.Log("[PlayerSessionManager] Singleton initialized and set as DontDestroyOnLoad.");
             }
             else if (Instance != this)
             {
-                Debug.LogWarning("[PlayerSessionManager] Duplicate PlayerSessionManager detected. Destroying the new instance.");
                 Destroy(gameObject);
             }
             // else: Instance == this 인 경우 (다시 활성화 등)
@@ -66,7 +64,6 @@ namespace Jae.Manager
             // 이 MonoBehaviour가 파괴되었거나, 비활성화되었거나, 비활성 계층에 있는 경우 StartCoroutine 호출 불가
             if (this == null || !gameObject.activeInHierarchy || !enabled)
             {
-                Debug.LogError("[PlayerSessionManager] HandleConnectionApprovalCallback called on a destroyed or inactive instance. Denying connection.");
                 response.Approved = false;
                 response.Pending = false;
                 return;
@@ -208,7 +205,6 @@ namespace Jae.Manager
             if (!connectedClientsData.ContainsKey(clientId))
             {
                 connectedClientsData[clientId] = new ClientInfo { Uid = uid, JwtToken = jwtToken, PlayerSpawnPosition = spawnPosition };
-                Debug.Log($"[PlayerSessionManager] Manually added ClientInfo for Client: {clientId}, Uid: {uid}");
             }
             else
             {

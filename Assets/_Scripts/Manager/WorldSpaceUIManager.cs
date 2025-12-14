@@ -53,8 +53,7 @@ namespace Jae.Manager
                 }
             }
         }
-
-        // Example: 등록된 모든 공급자에 대해 월드 공간의 UI 요소를 업데이트
+        
         private void Update()
         {
             if (!IsServer) return;

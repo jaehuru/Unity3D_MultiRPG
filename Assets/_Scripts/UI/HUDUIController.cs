@@ -5,7 +5,6 @@ using TMPro;
 using Jae.Common;
 using Jae.Manager;
 
-// This is a Controller. It manages the HUD view and sends signals to managers.
 public class HUDUIController : MonoBehaviour
 {
     public static HUDUIController Instance { get; private set; }

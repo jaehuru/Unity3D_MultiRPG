@@ -1,4 +1,4 @@
-using UnityEngine; // For JsonUtility
+using UnityEngine;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using Jae.UnityAdapter;

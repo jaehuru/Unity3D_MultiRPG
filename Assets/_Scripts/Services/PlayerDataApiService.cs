@@ -1,4 +1,4 @@
-using UnityEngine; // For JsonUtility
+using UnityEngine;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using Jae.UnityAdapter;
@@ -31,7 +31,6 @@ namespace Jae.Services
         public PlayerData(Vector3 pos)
         {
             position = new PlayerPosition(pos);
-            // Default values for now, could be expanded
             health = 100;
             inventory = new List<string>();
         }
@@ -49,11 +48,7 @@ namespace Jae.Services
     {
         public PlayerData playerData;
     }
-
-    // PlayerDataService's Responsibilities (Pure C# Service):
-    // 1. Defines data persistence API endpoints and request bodies.
-    // 2. Uses the WebRequestAdapter to execute web requests.
-    // 3. Parses the web request results into domain-specific results.
+    
     public class PlayerDataService
     {
         private readonly string _loadUrl;

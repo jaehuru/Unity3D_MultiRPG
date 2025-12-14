@@ -43,8 +43,6 @@ namespace Jae.Application
         
         private void OnLoadCompleteHandler(ulong clientId, string sceneName, LoadSceneMode loadSceneMode)
         {
-            Debug.Log($"[NetworkGameOrchestrator] OnLoadCompleteHandler Called for Client: {clientId}, Scene: {sceneName}");
-
             if (!NetworkManager.Singleton.IsServer) return;
             
             if (clientId == NetworkManager.ServerClientId)
@@ -54,16 +52,14 @@ namespace Jae.Application
             
             if (PlayerSessionManager.Instance.TryGetClientInfo(clientId, out var clientInfo))
             {
-                Debug.Log($"[NetworkGameOrchestrator] ClientInfo found for {clientId}. Attempting to spawn player.");
                 NetworkObject playerNetworkObject = SpawnManager.Instance.SpawnPlayer(clientId, clientInfo.PlayerSpawnPosition);
                 if (playerNetworkObject != null)
                 {
-                    Debug.Log($"[NetworkGameOrchestrator] Player spawned successfully for {clientId}. NetworkObjectId: {playerNetworkObject.NetworkObjectId}");
                     PlayerSessionManager.Instance.SetPlayerNetworkObject(clientId, playerNetworkObject);
                 }
                 else
                 {
-                    Debug.LogError($"[NetworkGameOrchestrator] SpawnManager failed to spawn player for client {clientId}. (Returned null NetworkObject)");
+                    Debug.LogError($"[NetworkGameOrchestrator] SpawnManager failed to spawn player for client {clientId}.");
                 }
             }
             else
@@ -115,16 +111,13 @@ namespace Jae.Application
 
             if (NetworkManager.Singleton.StartHost())
             {
-                // Manually add ClientInfo for the host client (Client ID 0)
-                ulong hostClientId = NetworkManager.ServerClientId; // This is always 0
-                string hostUid = AuthManager.Instance.GetUserId(); // Get User ID from AuthManager
-                string hostToken = AuthManager.Instance.GetCurrentToken(); // Get JWT token from AuthManager
+                ulong hostClientId = NetworkManager.ServerClientId;
+                string hostUid = AuthManager.Instance.GetUserId();
+                string hostToken = AuthManager.Instance.GetCurrentToken();
 
                 if (PlayerSessionManager.Instance != null && !PlayerSessionManager.Instance.TryGetClientInfo(hostClientId, out _))
                 {
-                    // For PlayerSpawnPosition, use Vector3.zero as a default. Actual spawn position will be set by SpawnManager.
                     PlayerSessionManager.Instance.AddClientInfo(hostClientId, hostUid, hostToken, Vector3.zero);
-                    Debug.Log($"[NetworkGameOrchestrator] Host ClientInfo manually added for Client: {hostClientId}");
                 }
                 else
                 {
