@@ -5,12 +5,14 @@ using UnityEngine;
 using Unity.Netcode;
 using UnityEngine.InputSystem;
 using Unity.Collections;
+using Unity.Netcode.Components;
 // Project
 using Jae.Common;
 using Jae.Manager;
 
 [RequireComponent(typeof(PlayerInput))]
 [RequireComponent(typeof(PlayerController))]
+[RequireComponent(typeof(NetworkTransform))]
 public class PlayerCharacter : NetworkBehaviour,
     IActor,
     IInteractor,
@@ -26,7 +28,9 @@ public class PlayerCharacter : NetworkBehaviour,
     IAttackHandler,
     IStateActivable
 {
+    private NetworkTransform _networkTransform;
     private readonly NetworkVariable<FixedString32Bytes> networkPlayerName = new(writePerm: NetworkVariableWritePermission.Server);
+    public readonly NetworkVariable<bool> IsActive = new(true, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
 
     // --- Stats ---
     private readonly NetworkVariable<float> _currentHealth = new(100f, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
@@ -42,18 +46,22 @@ public class PlayerCharacter : NetworkBehaviour,
     // --- Interfaces ---
     private IHealth _playerHealth;
 
+    private void OnActiveStateChanged(bool previousValue, bool newValue)
+    {
+        if (TryGetComponent<PlayerController>(out var controller)) controller.enabled = newValue;
+        if (TryGetComponent<Collider>(out var col)) col.enabled = newValue;
+        var mainRenderer = GetComponentInChildren<Renderer>();
+        if (mainRenderer != null) mainRenderer.enabled = newValue;
+    }
+
     public void Activate()
     {
-        if (TryGetComponent<PlayerController>(out var controller)) controller.enabled = true;
-        if (TryGetComponent<Collider>(out var col)) col.enabled = true;
-        // 플레이어는 렌더링 요소(외형 등)를 표시하는 데 더 복잡한 로직을 사용할 가능성이 높으므로
-        // 현재는 핵심 게임플레이 구성 요소만 처리
+        if(IsServer) IsActive.Value = true;
     }
 
     public void Deactivate()
     {
-        if (TryGetComponent<PlayerController>(out var controller)) controller.enabled = false;
-        if (TryGetComponent<Collider>(out var col)) col.enabled = false;
+        if(IsServer) IsActive.Value = false;
     }
 
 #region Interface Implementations
@@ -113,14 +121,6 @@ public class PlayerCharacter : NetworkBehaviour,
             }
         }
         
-        if (IsOwner)
-        {
-            if (HUDUIController.Instance != null)
-            {
-                HUDUIController.Instance.RegisterLocalPlayerHealth(this);
-            }
-        }
-        
         if (ctx != null && ctx.Point != null && IsServer)
         {
              transform.position = ctx.Point.GetPosition();
@@ -158,7 +158,7 @@ public class PlayerCharacter : NetworkBehaviour,
     }
     public void Teleport(Vector3 pos)
     {
-        transform.position = pos;
+        _networkTransform.Teleport(pos, transform.rotation, transform.localScale);
     }
 
     // IAnimPlayable
@@ -248,11 +248,15 @@ public class PlayerCharacter : NetworkBehaviour,
     private void Awake()
     {
         _playerHealth = new PlayerHealth(this);
+        _networkTransform = GetComponent<NetworkTransform>();
     }
 
     public override void OnNetworkSpawn()
     {
         base.OnNetworkSpawn();
+        
+        IsActive.OnValueChanged += OnActiveStateChanged;
+        OnActiveStateChanged(false, IsActive.Value);
         
         if (!IsLocalPlayer)
         {
@@ -284,11 +288,17 @@ public class PlayerCharacter : NetworkBehaviour,
                     playerCameraScript.SetTarget(GetComponent<PlayerController>());
                 }
             }
+            
+            if (HUDUIController.Instance != null)
+            {
+                HUDUIController.Instance.RegisterLocalPlayerHealth(this);
+            }
         }
     }
 
     public override void OnNetworkDespawn()
     {
         base.OnNetworkDespawn();
+        IsActive.OnValueChanged -= OnActiveStateChanged;
     }
 }

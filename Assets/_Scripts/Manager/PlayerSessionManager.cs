@@ -1,10 +1,12 @@
-using UnityEngine;
-using Unity.Netcode;
 using System.Collections.Generic;
 using System;
 using System.Text;
 using System.Threading.Tasks;
 using System.Collections;
+// Unity
+using UnityEngine;
+using Unity.Netcode;
+// Project
 using Jae.Services;
 
 namespace Jae.Manager
@@ -35,23 +37,20 @@ namespace Jae.Manager
             if (Instance == null)
             {
                 Instance = this;
-                DontDestroyOnLoad(gameObject); // Ensure it persists
-                _authService = new AuthService(authUrl); // 서비스 초기화 (Awake에서 하는 것이 맞음)
-                _playerDataService = new PlayerDataService(playerDataUrl); // 서비스 초기화 (Awake에서 하는 것이 맞음)
+                DontDestroyOnLoad(gameObject);
+                _authService = new AuthService(authUrl);
+                _playerDataService = new PlayerDataService(playerDataUrl);
             }
             else if (Instance != this)
             {
                 Destroy(gameObject);
             }
-            // else: Instance == this 인 경우 (다시 활성화 등)
         }
 
 
         
         public void HandleConnectionApprovalCallback(NetworkManager.ConnectionApprovalRequest request, NetworkManager.ConnectionApprovalResponse response)
         {
-            // 방어 로직: 현재 인스턴스가 유효한지 확인
-            // 이 MonoBehaviour가 파괴되었거나, 비활성화되었거나, 비활성 계층에 있는 경우 StartCoroutine 호출 불가
             if (this == null || !gameObject.activeInHierarchy || !enabled)
             {
                 response.Approved = false;
@@ -159,7 +158,6 @@ namespace Jae.Manager
             {
                 PlayerData dataToSave = new PlayerData(clientInfo.PlayerNetworkObject.transform.position);
                 bool saveSuccess = await _playerDataService.SavePlayerData(clientInfo.JwtToken, dataToSave);
-                // if (!saveSuccess) { Debug.LogWarning($"[PlayerSessionManager] Failed to save data for uid {clientInfo.Uid} on disconnect."); } // Log Warning
             }
         }
         

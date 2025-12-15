@@ -21,14 +21,20 @@ namespace Jae.Manager
         
         public void RegisterMainCamera(Camera cam)
         {
+            if (cam == null)
+            {
+                Debug.LogWarning("[CameraManager] RegisterMainCamera에 null 카메라를 등록하려고 시도했습니다.");
+                return;
+            }
+            
             MainCamera = cam;
-            // Debug.Log("[CameraManager] Main Camera registered.");
         }
         
         public void UnregisterMainCamera()
         {
+            if (MainCamera == null) return;
+            
             MainCamera = null;
-            // Debug.Log("[CameraManager] Main Camera unregistered.");
         }
     }
 }

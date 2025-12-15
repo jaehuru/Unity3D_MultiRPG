@@ -25,14 +25,7 @@ public class PlayerCamera : MonoBehaviour
 
     void Awake()
     {
-        if (CameraManager.Instance != null)
-        {
-            CameraManager.Instance.RegisterMainCamera(GetComponent<Camera>());
-        }
-        else
-        {
-            Debug.LogError("[PlayerCamera] CameraManager.Instance is not found. Make sure a CameraManager is in the scene.");
-        }
+
     }
 
     void Start()
@@ -76,6 +69,16 @@ public class PlayerCamera : MonoBehaviour
         {
             Debug.LogError("PlayerCamera: FirstPersonAnchor or ThirdPersonAnchor not found as children of the player. Please create them.");
             enabled = false;
+        }
+        
+        // 이 카메라가 로컬 플레이어의 카메라임이 확실해졌으므로, 지금 등록합니다.
+        if (CameraManager.Instance != null)
+        {
+            CameraManager.Instance.RegisterMainCamera(GetComponent<Camera>());
+        }
+        else
+        {
+            Debug.LogError("[PlayerCamera] CameraManager.Instance is not found during SetTarget.");
         }
     }
     

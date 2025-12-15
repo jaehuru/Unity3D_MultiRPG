@@ -186,11 +186,19 @@ public class EnemyAIController : NetworkBehaviour, IAIController
     {
         while (_currentState == EnemyAIState.Patrol)
         {
+            // _agent가 활성화되어 있지 않거나 NavMesh에 배치되지 않았다면, 현재 반복을 건너뛴다.
+            if (_agent == null || !_agent.enabled || !_agent.isOnNavMesh)
+            {
+                // Debug.LogWarning("NavMeshAgent가 비활성화되었거나 NavMesh 위에 있지 않습니다. 순찰을 일시 중단합니다.");
+                yield return null; // 다음 프레임까지 기다렸다가 다시 체크
+                continue;
+            }
+
             Vector3 randomPoint = _homePosition + Random.insideUnitSphere * patrolRadius;
             if (NavMesh.SamplePosition(randomPoint, out var hit, patrolRadius, NavMesh.AllAreas))
             {
                 if(_agent.isOnNavMesh) _agent.SetDestination(hit.position);
-                yield return new WaitUntil(() => !_agent.pathPending && _agent.remainingDistance <= patrolStoppingDistance);
+                yield return new WaitUntil(() => _agent != null && _agent.enabled && _agent.isOnNavMesh && !_agent.pathPending && _agent.remainingDistance <= patrolStoppingDistance);
             }
             yield return new WaitForSeconds(patrolWaitTime + Random.Range(-1f, 1f));
         }

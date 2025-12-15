@@ -5,6 +5,7 @@ using UnityEngine.UI;
 using TMPro;
 // Project
 using Jae.Common;
+using Jae.Manager;
 
 public abstract class WorldSpaceUIController : NetworkBehaviour
 {
@@ -12,7 +13,7 @@ public abstract class WorldSpaceUIController : NetworkBehaviour
     protected GameObject worldSpaceCanvas;
 
     private VisibilityController _visibilityController;
-    private Transform _mainCameraTransform;
+    private static Transform _staticMainCameraTransform;
 
     protected Slider healthSlider;
     protected TextMeshProUGUI nameText;
@@ -70,12 +71,6 @@ public abstract class WorldSpaceUIController : NetworkBehaviour
         if (healthComponent != null)
         {
             healthComponent.OnHealthUpdated += UpdateHealthUI;
-        }
-        
-        _mainCameraTransform = Camera.main?.transform;
-        if (_mainCameraTransform == null)
-        {
-            Debug.LogWarning("Main Camera를 찾을 수 없습니다. UI 빌보딩이 작동하지 않을 수 있습니다.", this);
         }
 
         
@@ -169,9 +164,22 @@ public abstract class WorldSpaceUIController : NetworkBehaviour
     
     private void LateUpdate()
     {
-        if (worldSpaceCanvas != null && _mainCameraTransform != null)
+        // 이 로직은 클라이언트에서만 의미가 있음
+        if (!IsClient || worldSpaceCanvas == null) return;
+        
+        // static 변수를 사용하여 모든 인스턴스가 카메라를 공유하도록 함
+        if (_staticMainCameraTransform == null)
         {
-            worldSpaceCanvas.transform.rotation = _mainCameraTransform.rotation;
+            if (CameraManager.Instance != null && CameraManager.Instance.MainCamera != null)
+            {
+                _staticMainCameraTransform = CameraManager.Instance.MainCamera.transform;
+            }
+        }
+
+        if (_staticMainCameraTransform != null)
+        {
+            // 빌보드 효과: UI가 항상 카메라와 같은 방향을 보도록 함
+            worldSpaceCanvas.transform.rotation = _staticMainCameraTransform.rotation;
         }
     }
 }

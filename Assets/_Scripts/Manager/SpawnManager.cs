@@ -227,7 +227,11 @@ namespace Jae.Manager
         {
             var spawnable = combatant as ISpawnable;
             var respawnPolicy = spawnable.GetRespawnPolicy();
-            (combatant as IStateActivable)?.Deactivate();
+            
+            // Deactivate 대신 IsActive.Value 변경
+            if (combatant is PlayerCharacter player) player.IsActive.Value = false;
+            else if (combatant is EnemyCharacter enemy) enemy.IsActive.Value = false;
+
             TimeSpan delay = respawnPolicy.GetRespawnDelay(spawnable);
             yield return new WaitForSeconds((float)delay.TotalSeconds);
             ISpawnPoint point = respawnPolicy.SelectRespawnPoint(spawnable);
@@ -257,7 +261,11 @@ namespace Jae.Manager
 
             var health = combatant.GetHealth();
             health.Heal(health.Max);
-            (combatant as IStateActivable)?.Activate();
+
+            // Activate 대신 IsActive.Value 변경
+            if (combatant is PlayerCharacter playerToActivate) playerToActivate.IsActive.Value = true;
+            else if (combatant is EnemyCharacter enemyToActivate) enemyToActivate.IsActive.Value = true;
+            
             Debug.Log($"{((Component)combatant).name}이(가) {point.GetPosition()}에서 리스폰되었습니다.");
         }
     }
