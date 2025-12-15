@@ -1,7 +1,9 @@
-using Jae.Common;
+// Unity
 using UnityEngine;
 using Unity.Netcode;
-using Jae.Manager;
+// Project
+using Jae.Common;
+
 
 namespace Jae.Manager
 {
@@ -129,6 +131,22 @@ namespace Jae.Manager
             }
 
             targetHealth.ApplyDamage(damageEvent);
+
+            // 5. Trigger enemy UI for the attacker if the target is an enemy and attacker is a player
+            if (target is ICombatant && (target as Component).TryGetComponent<EnemyWorldSpaceUIController>(out var enemyUIController))
+            {
+                if (attacker is ICombatant && (attacker as Component) is NetworkBehaviour attackerNetworkBehaviour)
+                {
+                    ClientRpcParams clientRpcParams = new ClientRpcParams
+                    {
+                        Send = new ClientRpcSendParams
+                        {
+                            TargetClientIds = new ulong[] { attackerNetworkBehaviour.OwnerClientId }
+                        }
+                    };
+                    enemyUIController.ShowCombatUIForAttackerClientRpc(clientRpcParams);
+                }
+            }
 
             Debug.Log($"[CombatManager] {damageEvent.Attacker.name} dealt {damageEvent.Amount} damage to {damageEvent.Target.name}.");
 

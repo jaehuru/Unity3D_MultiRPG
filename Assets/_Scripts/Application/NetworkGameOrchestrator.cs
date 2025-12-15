@@ -1,8 +1,10 @@
+using System.Collections;
+// Unity
 using UnityEngine;
 using Unity.Netcode;
 using UnityEngine.SceneManagement;
+// Project
 using Jae.Manager;
-using System.Collections;
 
 namespace Jae.Application
 {

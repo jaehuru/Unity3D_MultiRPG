@@ -1,7 +1,9 @@
+using System.Threading.Tasks;
+// Unity
 using UnityEngine;
 using UnityEngine.Events;
+// Project
 using Jae.Services;
-using System.Threading.Tasks;
 
 
 namespace Jae.Manager

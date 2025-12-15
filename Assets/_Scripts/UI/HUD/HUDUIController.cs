@@ -1,7 +1,9 @@
+// Unity
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
 using TMPro;
+// Project
 using Jae.Common;
 using Jae.Manager;
 
@@ -13,10 +15,10 @@ public class HUDUIController : MonoBehaviour
     [SerializeField] private GameObject quitPanel;
 
     [Header("HUD Elements")]
-    [SerializeField] private Slider hudHealthSlider;
-    [SerializeField] private TextMeshProUGUI hudHealthText;
-
-    private IHUDUpdatable localPlayerHUD;
+    [SerializeField] private Slider healthSlider;
+    [SerializeField] private TextMeshProUGUI healthText;
+    
+    private IHealth healthComponent;
 
     private void Awake()
     {
@@ -40,36 +42,46 @@ public class HUDUIController : MonoBehaviour
 
     private void OnDestroy()
     {
-        if (localPlayerHUD != null)
+        if (healthComponent != null)
         {
-            localPlayerHUD.OnHealthChanged -= UpdateHUDHealth;
+            healthComponent.OnHealthUpdated -= UpdateHealthUI;
         }
     }
     
     // ============================================
     //  HEALTH UI
     // ============================================
-    public void RegisterLocalPlayerHealth(IHUDUpdatable playerHUD)
+    public void RegisterLocalPlayerHealth(ICombatant playerCombatant)   
     {
-        localPlayerHUD = playerHUD;
-        if (localPlayerHUD != null)
+        if (this.healthComponent != null)
         {
-            localPlayerHUD.OnHealthChanged += UpdateHUDHealth;
+            this.healthComponent.OnHealthUpdated -= UpdateHealthUI;
         }
+        
+        this.healthComponent = playerCombatant.GetHealth();
+        if (this.healthComponent != null)
+        {
+            this.healthComponent.OnHealthUpdated += UpdateHealthUI;
+            
+            UpdateHealthUI(this.healthComponent.Current, this.healthComponent.Max);
+        }
+        else
+        {
+            Debug.LogError("RegisterLocalPlayerHealth: IHealth 컴포넌트를 찾을 수 없습니다! 전달된 ICombatant에 IHealth가 구현되어 있지 않습니다.", this);  
+        }          
     }
 
-    private void UpdateHUDHealth(float currentHealth, float maxHealth)
+    private void UpdateHealthUI(float currentHealth, float maxHealth)
     {
-        if (hudHealthSlider != null)
+        if (healthSlider != null)
         {
-            if (maxHealth > 0)
-            {
-                hudHealthSlider.value = currentHealth / maxHealth;
-            }
+            healthSlider.maxValue = maxHealth;
+            healthSlider.value = currentHealth;
         }
-        if (hudHealthText != null)
+        
+        if (healthText != null)
         {
-            hudHealthText.text = $"HP : {currentHealth:F0} / {maxHealth:F0}";
+            healthText.text = $"HP : {currentHealth:F0} / {maxHealth:F0}";
         }
     }
 

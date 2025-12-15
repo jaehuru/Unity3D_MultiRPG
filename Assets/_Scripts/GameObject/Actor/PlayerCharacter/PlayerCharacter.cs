@@ -1,11 +1,11 @@
-using UnityEngine;
-using Unity.Netcode;
-using UnityEngine.AI;
-using UnityEngine.InputSystem;
-using Unity.Collections;
 using System;
 using System.Collections.Generic;
-using Jae.Common;
+// Unity
+using UnityEngine;
+using Unity.Netcode;
+using UnityEngine.InputSystem;
+using Unity.Collections;
+// Project
 using Jae.Common;
 using Jae.Manager;
 
@@ -46,8 +46,8 @@ public class PlayerCharacter : NetworkBehaviour,
     {
         if (TryGetComponent<PlayerController>(out var controller)) controller.enabled = true;
         if (TryGetComponent<Collider>(out var col)) col.enabled = true;
-        // Players likely have more complex logic for showing renderers (cosmetics etc), 
-        // so we'll only handle core gameplay components for now.
+        // 플레이어는 렌더링 요소(외형 등)를 표시하는 데 더 복잡한 로직을 사용할 가능성이 높으므로
+        // 현재는 핵심 게임플레이 구성 요소만 처리
     }
 
     public void Deactivate()
@@ -56,7 +56,7 @@ public class PlayerCharacter : NetworkBehaviour,
         if (TryGetComponent<Collider>(out var col)) col.enabled = false;
     }
 
-    #region Interface Implementations
+#region Interface Implementations
     // IActor Implementation
     public string GetId() => OwnerClientId.ToString();
     public Transform GetTransform() => transform;
@@ -121,11 +121,10 @@ public class PlayerCharacter : NetworkBehaviour,
             }
         }
         
-        // Directly set position and rotation without NavMeshAgent
         if (ctx != null && ctx.Point != null && IsServer)
         {
              transform.position = ctx.Point.GetPosition();
-             transform.rotation = ctx.Point.GetRotation(); // Also set rotation
+             transform.rotation = ctx.Point.GetRotation();
         }
     }
     public IRespawnPolicy GetRespawnPolicy() => new PlayerRespawnPolicy(this);
@@ -141,7 +140,6 @@ public class PlayerCharacter : NetworkBehaviour,
     public DamageType GetDefaultDamageType() => DamageType.Physical;
 
     // IHUDUpdatable
-    public event Action<float, float> OnHealthChanged;
     public event Action<int> OnResourceChanged;
 
     // IInventoryHandler
@@ -183,8 +181,6 @@ public class PlayerCharacter : NetworkBehaviour,
     [ServerRpc]
     public void RequestMove_ServerRpc(MovementSnapshot snap)
     {
-        // The RPC is called on the server.
-        // The MovementManager (which is server-owned) handles the actual move logic.
         if (MovementManager.Instance != null)
         {
             MovementManager.Instance.ServerMove(OwnerClientId, snap);
@@ -201,13 +197,15 @@ public class PlayerCharacter : NetworkBehaviour,
 
         public event Action<DamageEvent> OnDamaged;
         public event Action OnDied;
+        public event Action<float, float> OnHealthUpdated; // ADDED
 
         public PlayerHealth(PlayerCharacter owner)
         {
             _owner = owner;
             _owner._currentHealth.OnValueChanged += (prev, curr) =>
             {
-                _owner.OnHealthChanged?.Invoke(curr, _owner._maxHealth.Value);
+                OnHealthUpdated?.Invoke(curr, Max);
+
                 if (curr < prev)
                 {
                     OnDamaged?.Invoke(new DamageEvent { Amount = prev - curr });
@@ -256,18 +254,34 @@ public class PlayerCharacter : NetworkBehaviour,
     {
         base.OnNetworkSpawn();
         
-        if (WorldSpaceUIManager.Instance != null)
+        if (!IsLocalPlayer)
         {
-            WorldSpaceUIManager.Instance.RegisterUIProvider(NetworkObjectId, this);
+            if (TryGetComponent<PlayerInput>(out var playerInput))
+            {
+                playerInput.enabled = false;
+            }
+            
+            Transform playerCameraTransform = transform.Find("Player Camera"); 
+            if (playerCameraTransform != null)
+            {
+                if (playerCameraTransform.TryGetComponent<Camera>(out var playerCamera))
+                {
+                    playerCamera.enabled = false;
+                }
+                if (playerCameraTransform.TryGetComponent<AudioListener>(out var audioListener))
+                {
+                    audioListener.enabled = false;
+                }
+            }
         }
         
-        if (IsOwner)
+        if (IsLocalPlayer)
         {
             if (CameraManager.Instance != null && CameraManager.Instance.MainCamera != null)
             {
-                if (CameraManager.Instance.MainCamera.TryGetComponent<PlayerCamera>(out var playerCamera))
+                if (CameraManager.Instance.MainCamera.TryGetComponent<PlayerCamera>(out var playerCameraScript))
                 {
-                    playerCamera.SetTarget(GetComponent<PlayerController>());
+                    playerCameraScript.SetTarget(GetComponent<PlayerController>());
                 }
             }
         }
@@ -275,10 +289,6 @@ public class PlayerCharacter : NetworkBehaviour,
 
     public override void OnNetworkDespawn()
     {
-        if (WorldSpaceUIManager.Instance != null)
-        {
-            WorldSpaceUIManager.Instance.UnregisterUIProvider(NetworkObjectId);
-        }
         base.OnNetworkDespawn();
     }
 }

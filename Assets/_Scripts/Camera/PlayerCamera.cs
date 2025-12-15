@@ -1,5 +1,8 @@
+// Unity
 using UnityEngine;
+// Project
 using Jae.Manager;
+
 public class PlayerCamera : MonoBehaviour
 {
     [Header("Target Settings")]
@@ -83,7 +86,6 @@ public class PlayerCamera : MonoBehaviour
 
     private void OnDestroy()
     {
-        // Unregister the camera when this object is destroyed
         if (CameraManager.Instance != null)
         {
             CameraManager.Instance.UnregisterMainCamera();

@@ -1,9 +1,10 @@
 using System;
-using Jae.Common;
+// Unity
 using UnityEngine;
 using Unity.Netcode;
 using Unity.Collections;
 using UnityEngine.AI;
+// Project
 using Jae.Common;
 using Jae.Manager;
 
@@ -175,12 +176,15 @@ public class EnemyCharacter : NetworkBehaviour,
 
         public event Action<DamageEvent> OnDamaged;
         public event Action OnDied;
+        public event Action<float, float> OnHealthUpdated; // ADDED
 
         public EnemyHealth(EnemyCharacter owner)
         {
             _owner = owner;
             _owner._currentHealth.OnValueChanged += (prev, curr) =>
             {
+                OnHealthUpdated?.Invoke(curr, Max);
+                
                 if (curr < prev)
                     OnDamaged?.Invoke(new DamageEvent { Amount = prev - curr });
                 if (curr <= 0 && prev > 0)
@@ -228,18 +232,10 @@ public class EnemyCharacter : NetworkBehaviour,
     public override void OnNetworkSpawn()
     {
         base.OnNetworkSpawn();
-        if (WorldSpaceUIManager.Instance != null)
-        {
-            WorldSpaceUIManager.Instance.RegisterUIProvider(NetworkObjectId, this);
-        }
     }
 
     public override void OnNetworkDespawn()
     {
-        if (WorldSpaceUIManager.Instance != null)
-        {
-            WorldSpaceUIManager.Instance.UnregisterUIProvider(NetworkObjectId);
-        }
         base.OnNetworkDespawn();
     }
 }

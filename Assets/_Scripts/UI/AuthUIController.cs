@@ -1,6 +1,8 @@
+// Unity
 using UnityEngine;
 using TMPro; 
 using UnityEngine.UI; 
+// Project
 using Jae.Manager; 
 using Jae.Application; 
 

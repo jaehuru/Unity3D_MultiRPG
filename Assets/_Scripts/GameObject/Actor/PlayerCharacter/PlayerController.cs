@@ -1,7 +1,9 @@
-using Jae.Common;
+// Unity
 using UnityEngine;
 using Unity.Netcode;
 using UnityEngine.InputSystem;
+// Project
+using Jae.Common;
 using Jae.Manager;
 
 [RequireComponent(typeof(PlayerCharacter))]
@@ -60,16 +62,17 @@ public class PlayerController : NetworkBehaviour
         {
             MoveInput = _moveInput,
             LookDelta = _lookInput,
-            RotationSpeed = rotationSpeed, // Add rotationSpeed to snapshot
+            RotationSpeed = rotationSpeed,
             DeltaTime = Time.deltaTime
         };
         
         if (_playerCharacter != null)
         {
             _playerCharacter.RequestMove_ServerRpc(snapshot);
-        } else {
-            // Error handling can remain if _playerCharacter can legitimately be null
-            Debug.LogError($"[PlayerController] _playerCharacter is null in HandleOwnerMovement!"); // Keep this specific error if it's a real problem
+        } 
+        else 
+        {
+            Debug.LogError($"[PlayerController] _playerCharacter is null in HandleOwnerMovement!");
         }
     }
 
@@ -89,7 +92,7 @@ public class PlayerController : NetworkBehaviour
     }
 
 
-    #region Input System Events (Called by PlayerInput component)
+#region Input System Events (Called by PlayerInput component)
     public void OnMove(InputValue value)
     {
         if (!IsOwner) return;
@@ -107,7 +110,7 @@ public class PlayerController : NetworkBehaviour
         if (!IsOwner || !value.isPressed) return;
         RequestAttackServerRpc();
     }
-    #endregion
+#endregion
 
     [ServerRpc]
     private void RequestAttackServerRpc()

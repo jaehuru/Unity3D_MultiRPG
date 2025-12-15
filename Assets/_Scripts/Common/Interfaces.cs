@@ -1,5 +1,5 @@
 using System;
-using Jae.Common;
+// Unity
 using UnityEngine;
 using Unity.Netcode;
 
@@ -75,6 +75,7 @@ namespace Jae.Common
         void Heal(float amount);
         event System.Action<DamageEvent> OnDamaged;
         event System.Action OnDied;
+        event System.Action<float, float> OnHealthUpdated;
     }
 
     public struct StatModifier { /* TODO: StatModifier 구조체 정의 */ }
@@ -82,7 +83,7 @@ namespace Jae.Common
     public interface IStatProvider
     {
         float GetStat(StatType stat);
-        void SetStat(StatType stat, float value); // Added for stat modification
+        void SetStat(StatType stat, float value);
         void AddModifier(StatModifier m);
         void RemoveModifier(System.Guid id);
     }
@@ -359,7 +360,6 @@ namespace Jae.Common
 
     public interface IHUDUpdatable
     {
-        event Action<float, float> OnHealthChanged;
         event Action<int> OnResourceChanged;
     }
 

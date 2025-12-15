@@ -1,7 +1,9 @@
-using Unity.Netcode;
 using System.Collections.Generic;
-using Jae.Common;
+// Unity
+using Unity.Netcode;
 using UnityEngine;
+// Project
+using Jae.Common;
 
 namespace Jae.Manager
 {

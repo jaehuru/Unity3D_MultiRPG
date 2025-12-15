@@ -1,7 +1,9 @@
+using System.Collections;
+// Unity
 using UnityEngine;
 using Unity.Netcode;
 using UnityEngine.AI;
-using System.Collections;
+// Project
 using Jae.Common;
 using Jae.Manager;
 

@@ -1,6 +1,8 @@
-using UnityEngine;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+// Unity
+using UnityEngine;
+// Project
 using Jae.UnityAdapter;
 
 namespace Jae.Services

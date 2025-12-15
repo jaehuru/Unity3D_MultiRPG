@@ -1,7 +1,9 @@
+using System;
+// Unity
 using UnityEngine;
 using Unity.Netcode;
 using UnityEngine.SceneManagement;
-using System;
+// Project
 using Jae.Common;
 
 namespace Jae.Manager
