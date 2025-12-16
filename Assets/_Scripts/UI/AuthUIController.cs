@@ -57,7 +57,9 @@ public class AuthUIController : MonoBehaviour
             }
             else
             {
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
                 Debug.LogError("[AuthUIController] NetworkGameOrchestrator.Instance is not found!");
+#endif
             }
         });
         
@@ -69,7 +71,9 @@ public class AuthUIController : MonoBehaviour
             }
             else
             {
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
                 Debug.LogError("[AuthUIController] NetworkGameOrchestrator.Instance is not found!");
+#endif
             }
         });
         
@@ -82,7 +86,9 @@ public class AuthUIController : MonoBehaviour
         }
         else
         {
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
             Debug.LogError("[AuthUIController] AuthManager.Instance is null. Is AuthManager GameObject in the scene and persistent?");
+#endif
         }
 
         if (NetworkManager.Singleton != null)
@@ -109,6 +115,8 @@ public class AuthUIController : MonoBehaviour
 
     private void HandleClientDisconnect(ulong clientId)
     {
+        if (NetworkManager.Singleton == null) return;
+        
         if (NetworkManager.Singleton.IsServer)
         {
             return;
@@ -136,7 +144,9 @@ public class AuthUIController : MonoBehaviour
         {
             loginStatusText.text = "Login Failed: " + message;
         }
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
         Debug.LogError("[AuthUIController] Login failed callback: " + message);
+#endif
     }
 
     private void OnRegisterSuccessHandler(string message)
@@ -145,7 +155,9 @@ public class AuthUIController : MonoBehaviour
         {
             registerStatusText.text = "Registration Successful: " + message;
         }
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
         Debug.Log("[AuthUIController] Registration Successful: " + message);
+#endif
         ShowLoginPanel();
     }
 
@@ -155,7 +167,9 @@ public class AuthUIController : MonoBehaviour
         {
             registerStatusText.text = "Registration Failed: " + message;
         }
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
         Debug.LogError("[AuthUIController] Registration failed callback: " + message);
+#endif
     }
     
 
@@ -172,12 +186,23 @@ public class AuthUIController : MonoBehaviour
         if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(email) || string.IsNullOrEmpty(password))
         {
             if (registerStatusText != null) registerStatusText.text = "All fields are required.";
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
             Debug.LogError("[AuthUIController] Registration Error: All fields are required.");
+#endif
             return;
         }
         if (registerStatusText != null) registerStatusText.text = "Registering...";
         
-        _ = AuthManager.Instance.AttemptRegister(username, email, password);
+        if (AuthManager.Instance != null)
+        {
+            _ = AuthManager.Instance.AttemptRegister(username, email, password);
+        }
+        else
+        {
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
+            Debug.LogError("[AuthUIController] AuthManager.Instance is null during OnRegisterButtonClick.");
+#endif
+        }
     }
     
     public void OnLoginButtonClick()
@@ -188,18 +213,38 @@ public class AuthUIController : MonoBehaviour
         if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
         {
             if (loginStatusText != null) loginStatusText.text = "Username and password are required.";
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
             Debug.LogError("[AuthUIController] Login Error: Username and password are required.");
+#endif
             return;
         }
         if (loginStatusText != null) loginStatusText.text = "Logging in...";
         if (connectionStatusText != null) connectionStatusText.text = "";
         
-        _ = AuthManager.Instance.AttemptLogin(username, password);
+        if (AuthManager.Instance != null)
+        {
+            _ = AuthManager.Instance.AttemptLogin(username, password);
+        }
+        else
+        {
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
+            Debug.LogError("[AuthUIController] AuthManager.Instance is null during OnLoginButtonClick.");
+#endif
+        }
     }
 
     public void OnQuitApplicationButtonClick()
     {
-        GameManager.Instance.QuitApplication();
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.QuitApplication();
+        }
+        else
+        {
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
+            Debug.LogError("[AuthUIController] GameManager.Instance is null during OnQuitApplicationButtonClick.");
+#endif
+        }
     }
     
     public void ShowRoleSelectionPanel()
@@ -213,7 +258,9 @@ public class AuthUIController : MonoBehaviour
         }
         else
         {
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
             Debug.LogWarning("[AuthUIController] No valid token found, returning to login panel.");
+#endif
             ShowLoginPanel("Session expired or login failed. Please log in again.");
         }
     }

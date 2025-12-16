@@ -31,8 +31,6 @@ namespace Jae.Manager
         private bool _initialEnemiesSpawned = false;
         private Dictionary<ICombatant, Vector3> _initialPositions = new Dictionary<ICombatant, Vector3>();
         
-        private AIManager _aiManager;
-
 
         // Concrete implementation of ISpawnContext
         public class DefaultSpawnContext : ISpawnContext
@@ -77,12 +75,8 @@ namespace Jae.Manager
             }
             
             Instance = this;
-
-            _aiManager = AIManager.Instance;
         }
-
-
-
+        
         public NetworkObject SpawnPlayer(ulong clientId, Vector3 spawnPosition)
         {
             if (!IsServer) return null;
@@ -217,7 +211,16 @@ namespace Jae.Manager
 
             if (component != null && component.TryGetComponent<EnemyAIController>(out var aiController))
             {
-                _aiManager?.Unregister(aiController);
+                if (AIManager.Instance != null)
+                {
+                    AIManager.Instance.Unregister(aiController);
+                }
+                else
+                {
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
+                    Debug.LogError("[SpawnManager] AIManager.Instance is null. Cannot unregister AI controller.");
+#endif
+                }
             }
 
             if (component != null && component.TryGetComponent<NetworkObject>(out var netObj))

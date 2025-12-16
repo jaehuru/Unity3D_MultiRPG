@@ -14,6 +14,9 @@ namespace Jae.Manager
 
         public event Action<ulong, string, LoadSceneMode> OnSceneLoadComplete;
 
+        // --- 성능 최적화: 인스턴스 캐싱 (NetworkManager는 캐싱하지 않음) ---
+        // private NetworkManager _networkManager; // 필드 제거됨
+
         private void Awake()
         {
             if (Instance != null && Instance != this)
@@ -23,7 +26,7 @@ namespace Jae.Manager
             else
             {
                 Instance = this;
-                DontDestroyOnLoad(gameObject);
+                DontDestroyOnLoad(gameObject); // Persist across scenes
             }
         }
 
@@ -33,26 +36,26 @@ namespace Jae.Manager
             
             if (NetworkManager.Singleton == null)
             {
-#if DEVELOPMENT_BUILD || UNITY_EDITOR
+                // 서버 운영에 필수적인 로그이므로 유지
                 Debug.LogError("[SceneManager] NetworkManager.Singleton is null. Ensure a NetworkManager exists in the scene.");
-#endif
                 return;
             }
-            
+
+            // Subscribe to NetworkManager's scene load complete event
             if (NetworkManager.Singleton.SceneManager != null)
             {
                 NetworkManager.Singleton.SceneManager.OnLoadComplete += HandleNetworkSceneLoadComplete;
             }
             else
             {
-#if DEVELOPMENT_BUILD || UNITY_EDITOR
+                // 서버 운영에 필수적인 로그이므로 유지
                 Debug.LogError("[SceneManager] NetworkManager's SceneManager is null.");
-#endif
             }
         }
 
         public override void OnNetworkDespawn()
         {
+            // NetworkManager.Singleton에 직접 접근
             if (NetworkManager.Singleton != null && NetworkManager.Singleton.SceneManager != null)
             {
                 NetworkManager.Singleton.SceneManager.OnLoadComplete -= HandleNetworkSceneLoadComplete;
@@ -68,33 +71,34 @@ namespace Jae.Manager
 
         public void LoadGameScene()
         {
+            // NetworkManager.Singleton에 직접 접근
             if (NetworkManager.Singleton == null)
             {
-#if DEVELOPMENT_BUILD || UNITY_EDITOR
+                // 서버 운영에 필수적인 로그이므로 유지
                 Debug.LogError("[SceneManager] NetworkManager.Singleton is null. Cannot load game scene.");
-#endif
                 return;
             }
             if (!NetworkManager.Singleton.IsServer)
             {
-#if DEVELOPMENT_BUILD || UNITY_EDITOR
+                // 서버 운영에 필수적인 로그이므로 유지
                 Debug.LogError("[SceneManager] Only server can initiate scene loading.");
-#endif
                 return;
             }
 
             NetworkManager.Singleton.SceneManager.LoadScene(SceneNames.GameScene, LoadSceneMode.Single);
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
             Debug.Log($"[SceneManager] Attempting to load {SceneNames.GameScene}.");
+#endif
         }
 
 
         public void LoadLoginScene()
         {
+            // NetworkManager.Singleton에 직접 접근
             if (NetworkManager.Singleton == null)
             {
-#if DEVELOPMENT_BUILD || UNITY_EDITOR
+                // 서버 운영에 필수적인 로그이므로 유지
                 Debug.LogError("[SceneManager] NetworkManager.Singleton is null. Cannot load login scene.");
-#endif
                 UnityEngine.SceneManagement.SceneManager.LoadScene(SceneNames.MainScene, UnityEngine.SceneManagement.LoadSceneMode.Single);
 #if DEVELOPMENT_BUILD || UNITY_EDITOR
                 Debug.LogWarning($"[SceneManager] NetworkManager not found, falling back to regular scene load for {SceneNames.MainScene} (Login Scene).");

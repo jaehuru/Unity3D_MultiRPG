@@ -9,6 +9,14 @@ public class EnemyWorldSpaceUIController : WorldSpaceUIController
     private bool _isCombatVisible = false;
     private Coroutine _combatUICoroutine;
 
+    // --- 성능 최적화: WaitForSeconds 캐싱 ---
+    private WaitForSeconds _threeSecondsWait;
+
+    void Awake()
+    {
+        _threeSecondsWait = new WaitForSeconds(3f);
+    }
+
     protected override bool ShouldLogicVisible()
     {
         return _isCombatVisible;
@@ -29,7 +37,7 @@ public class EnemyWorldSpaceUIController : WorldSpaceUIController
         _isCombatVisible = true;
         UpdateUIVisibility();
 
-        yield return new WaitForSeconds(3f);
+        yield return _threeSecondsWait;
 
         _isCombatVisible = false;
         UpdateUIVisibility();

@@ -11,9 +11,8 @@ namespace Jae.Manager
     {
         public static CombatManager Instance { get; private set; }
         
-        private NetworkManager _networkManager;
+        // --- 성능 최적화를 위한 필드 ---
         private VFXManager _vfxManager;
-        
         private ClientRpcParams _rpcParams;
         private ulong[] _singleClientTarget = new ulong[1];
 
@@ -27,7 +26,6 @@ namespace Jae.Manager
             
             Instance = this;
             
-            _networkManager = NetworkManager.Singleton;
             _vfxManager = VFXManager.Instance;
             
             _rpcParams = new ClientRpcParams();
@@ -37,8 +35,8 @@ namespace Jae.Manager
         public void PlayerAttackRequestServerRpc(ulong clientId)
         {
             if (!IsServer) return;
-
-            if (_networkManager == null || !_networkManager.ConnectedClients.TryGetValue(clientId, out var client) || client.PlayerObject == null)
+            
+            if (NetworkManager.Singleton == null || !NetworkManager.Singleton.ConnectedClients.TryGetValue(clientId, out var client) || client.PlayerObject == null)
             {
                 Debug.LogError($"[CombatManager] Could not find PlayerObject for client {clientId}");
                 return;
@@ -169,6 +167,12 @@ namespace Jae.Manager
             {
                 _vfxManager.ShowFloatingText(position + Vector3.up, damage);
             }
+            else
+            {
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
+                Debug.LogError("[CombatManager] VFXManager is null. Cannot show floating text.");
+#endif
+            }
         }
 
         public bool ValidateHit(ICombatant attacker, ICombatant target)
@@ -176,7 +180,7 @@ namespace Jae.Manager
             if (!IsServer) return false;
 
             float distance = Vector3.Distance((attacker as IActor).GetTransform().position, (target as IActor).GetTransform().position);
-            float attackRange = attacker.GetStats()?.GetStat(StatType.AttackRange) ?? 1.0f;
+            float attackRange = attacker.GetStats()?.GetStat(StatType.AttackDamage) ?? 1.0f;
 
             return distance <= attackRange;
         }

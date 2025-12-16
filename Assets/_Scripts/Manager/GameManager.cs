@@ -10,9 +10,10 @@ namespace Jae.Manager
     {
         public static GameManager Instance { get; private set; }
         
-        private SceneFlowManager _sceneFlowManager;
-        private AuthManager _authManager;
-        private NetworkManager _networkManager;
+        // --- 성능 최적화: 인스턴스 캐싱 (가이드라인에 따라 제거됨) ---
+        // private SceneFlowManager _sceneFlowManager;
+        // private AuthManager _authManager;
+        // private NetworkManager _networkManager;
 
         private void Awake()
         {
@@ -25,9 +26,10 @@ namespace Jae.Manager
             Instance = this;
             DontDestroyOnLoad(gameObject);
             
-            _sceneFlowManager = SceneFlowManager.Instance;
-            _authManager = AuthManager.Instance;
-            _networkManager = NetworkManager.Singleton;
+            // 매니저 참조 캐싱 제거 (가이드라인에 따라)
+            // _sceneFlowManager = SceneFlowManager.Instance;
+            // _authManager = AuthManager.Instance;
+            // _networkManager = NetworkManager.Singleton;
         }
 
 
@@ -40,30 +42,34 @@ namespace Jae.Manager
         private IEnumerator LogoutCoroutine()
         {
             // 1. Shutdown the network connection
-            if (_networkManager != null)
+            // 캐싱 제거 후 NetworkManager.Singleton에 직접 접근
+            if (NetworkManager.Singleton != null)
             {
-                _networkManager.Shutdown();
+                NetworkManager.Singleton.Shutdown();
             }
             
             // 2. Clear authentication token
-            if (_authManager != null)
+            // 캐싱 제거 후 AuthManager.Instance에 직접 접근
+            if (AuthManager.Instance != null)
             {
-                _authManager.ClearStoredToken();
+                AuthManager.Instance.ClearStoredToken();
             }
 
             // 3. Wait a frame for shutdown processes to complete
             yield return null;
 
             // 4. Load the main menu/login scene
-            _sceneFlowManager?.LoadLoginScene();
+            // 캐싱 제거 후 SceneFlowManager.Instance에 직접 접근
+            SceneFlowManager.Instance?.LoadLoginScene();
         }
 
         public void QuitApplication()
         {
             // If in a network session, shut it down first
-            if (_networkManager != null && _networkManager.IsListening)
+            // 캐싱 제거 후 NetworkManager.Singleton에 직접 접근
+            if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening)
             {
-                _networkManager.Shutdown();
+                NetworkManager.Singleton.Shutdown();
             }
 #if UNITY_EDITOR
             UnityEditor.EditorApplication.isPlaying = false;
