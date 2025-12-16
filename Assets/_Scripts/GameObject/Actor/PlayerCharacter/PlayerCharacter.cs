@@ -281,9 +281,9 @@ public class PlayerCharacter : NetworkBehaviour,
         
         if (IsLocalPlayer)
         {
-            if (CameraManager.Instance != null && CameraManager.Instance.MainCamera != null)
+            if (Camera.main != null)
             {
-                if (CameraManager.Instance.MainCamera.TryGetComponent<PlayerCamera>(out var playerCameraScript))
+                if (Camera.main.TryGetComponent<PlayerCamera>(out var playerCameraScript))
                 {
                     playerCameraScript.SetTarget(GetComponent<PlayerController>());
                 }

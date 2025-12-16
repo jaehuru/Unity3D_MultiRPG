@@ -21,7 +21,7 @@ namespace Jae.Manager
 
         private AuthService _authService;
         private PlayerDataService _playerDataService;
-
+        
         public class ClientInfo 
         {
             public string Uid;
@@ -40,14 +40,13 @@ namespace Jae.Manager
                 DontDestroyOnLoad(gameObject);
                 _authService = new AuthService(authUrl);
                 _playerDataService = new PlayerDataService(playerDataUrl);
+                
             }
             else if (Instance != this)
             {
                 Destroy(gameObject);
             }
         }
-
-
         
         public void HandleConnectionApprovalCallback(NetworkManager.ConnectionApprovalRequest request, NetworkManager.ConnectionApprovalResponse response)
         {
@@ -71,10 +70,29 @@ namespace Jae.Manager
             
             string jwtToken = "";
             bool shouldProcess = true;
-
-            if (request.ClientNetworkId == NetworkManager.ServerClientId && NetworkManager.Singleton.IsHost)
+            
+            NetworkManager networkManager = NetworkManager.Singleton;
+            if (networkManager == null)
             {
-                jwtToken = AuthManager.Instance.GetCurrentToken();
+                response.Approved = false;
+                response.Reason = "NetworkManager.Singleton is NULL at approval stage.";
+                response.Pending = false;
+                Debug.LogError("[PlayerSessionManager] ConnectionApprovalCoroutine: NetworkManager.Singleton is NULL. Ensure NetworkManager is set up correctly in the scene!");
+                yield break;
+            }
+
+            if (request.ClientNetworkId == NetworkManager.ServerClientId && networkManager.IsHost)
+            {
+                AuthManager authManager = AuthManager.Instance; // AuthManager.Instance를 여기서 가져와 null 체크
+                if (authManager == null)
+                {
+                    response.Approved = false;
+                    response.Reason = "AuthManager.Instance is NULL at approval stage.";
+                    response.Pending = false;
+                    Debug.LogError("[PlayerSessionManager] ConnectionApprovalCoroutine: AuthManager.Instance is NULL!");
+                    yield break;
+                }
+                jwtToken = authManager.GetCurrentToken();
             }
             else
             {
@@ -190,11 +208,6 @@ namespace Jae.Manager
             if (!connectedClientsData.ContainsKey(clientId))
             {
                 connectedClientsData[clientId] = new ClientInfo { Uid = uid, JwtToken = jwtToken, PlayerSpawnPosition = spawnPosition };
-                // Debug.Log($"[PlayerSessionManager] Manually added ClientInfo for Client: {clientId}, Uid: {uid}"); // Log removed
-            }
-            else
-            {
-                // Debug.LogWarning($"[PlayerSessionManager] ClientInfo for Client: {clientId} already exists. Not adding."); // Log removed
             }
         }
         
@@ -210,7 +223,6 @@ namespace Jae.Manager
             {
                 PlayerData dataToSave = new PlayerData(position);
                 bool saveSuccess = await _playerDataService.SavePlayerData(clientInfo.JwtToken, dataToSave);
-                // if (!saveSuccess) { Debug.LogWarning($"[PlayerSessionManager] Failed to autosave position for uid {clientInfo.Uid}."); } // Log removed
             }
         }
     }

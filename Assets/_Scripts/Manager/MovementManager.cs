@@ -40,7 +40,7 @@ namespace Jae.Manager
                 Vector3 moveDir = new Vector3(snap.MoveInput.x, 0, snap.MoveInput.y);
                 Vector3 worldDir = playerNetworkObject.transform.TransformDirection(moveDir);
 
-                playerNetworkObject.transform.position += worldDir * speed * snap.DeltaTime;
+                playerNetworkObject.transform.position += worldDir * (speed * snap.DeltaTime);
             }
         }
     }

@@ -5,7 +5,6 @@ using UnityEngine.UI;
 using TMPro;
 // Project
 using Jae.Common;
-using Jae.Manager;
 
 public abstract class WorldSpaceUIController : NetworkBehaviour
 {
@@ -13,7 +12,7 @@ public abstract class WorldSpaceUIController : NetworkBehaviour
     protected GameObject worldSpaceCanvas;
 
     private VisibilityController _visibilityController;
-    private static Transform _staticMainCameraTransform;
+    private Transform _mainCameraTransform;
 
     protected Slider healthSlider;
     protected TextMeshProUGUI nameText;
@@ -39,12 +38,16 @@ public abstract class WorldSpaceUIController : NetworkBehaviour
         healthSlider = worldSpaceCanvas.GetComponentInChildren<Slider>();
         if (healthSlider == null)
         {
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
             Debug.LogWarning("WorldSpaceUI prefab에 Slider 컴포넌트가 없습니다. 체력 업데이트가 불가능합니다.", this);
+#endif
         }
         nameText = worldSpaceCanvas.GetComponentInChildren<TextMeshProUGUI>();
         if (nameText == null)
         {
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
             Debug.LogWarning("WorldSpaceUI prefab에 TextMeshProUGUI 컴포넌트가 없습니다. 이름 표시가 불가능합니다.", this);
+#endif
         }
         
         uiProvider = GetComponent<IWorldSpaceUIProvider>();
@@ -60,12 +63,16 @@ public abstract class WorldSpaceUIController : NetworkBehaviour
             healthComponent = combatant.GetHealth();
             if (healthComponent == null)
             {
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
                 Debug.LogWarning("ICombatant는 있으나 IHealth 컴포넌트를 찾을 수 없습니다.", this);
+#endif
             }
         }
         else
         {
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
             Debug.LogWarning("ICombatant 인터페이스를 찾을 수 없습니다. 체력 업데이트가 불가능할 수 있습니다.", this);
+#endif
         }
         
         if (healthComponent != null)
@@ -91,7 +98,9 @@ public abstract class WorldSpaceUIController : NetworkBehaviour
         }
         else
         {
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
             Debug.LogWarning("자식 오브젝트에서 SkinnedMeshRenderer 또는 MeshRenderer를 찾을 수 없습니다. UI가 카메라에 항상 보이는 것으로 간주됩니다.", this);
+#endif
             _isCameraVisible = true;
         }
         
@@ -164,22 +173,23 @@ public abstract class WorldSpaceUIController : NetworkBehaviour
     
     private void LateUpdate()
     {
-        // 이 로직은 클라이언트에서만 의미가 있음
-        if (!IsClient || worldSpaceCanvas == null) return;
+        if (!IsClient || worldSpaceCanvas == null || !worldSpaceCanvas.activeInHierarchy) return;
         
-        // static 변수를 사용하여 모든 인스턴스가 카메라를 공유하도록 함
-        if (_staticMainCameraTransform == null)
+        if (_mainCameraTransform == null)
         {
-            if (CameraManager.Instance != null && CameraManager.Instance.MainCamera != null)
+            if (Camera.main != null)
             {
-                _staticMainCameraTransform = CameraManager.Instance.MainCamera.transform;
+                _mainCameraTransform = Camera.main.transform;
+            }
+            else
+            {
+                return;
             }
         }
-
-        if (_staticMainCameraTransform != null)
+        
+        if(_mainCameraTransform != null) 
         {
-            // 빌보드 효과: UI가 항상 카메라와 같은 방향을 보도록 함
-            worldSpaceCanvas.transform.rotation = _staticMainCameraTransform.rotation;
+            worldSpaceCanvas.transform.rotation = _mainCameraTransform.rotation;
         }
     }
 }
