@@ -10,6 +10,8 @@ public class FloatingText : MonoBehaviour
 
     private float _lifeTimer;
     private Color _originalColor;
+    
+    private FloatingTextPool _pool;
 
     private void Awake()
     {
@@ -17,6 +19,11 @@ public class FloatingText : MonoBehaviour
         {
             _originalColor = damageText.color;
         }
+    }
+    
+    private void Start()
+    {
+        _pool = FloatingTextPool.Instance;
     }
 
     public void Show(int damage, Vector3 position)
@@ -35,8 +42,8 @@ public class FloatingText : MonoBehaviour
     void Update()
     {
         if (_lifeTimer <= 0) return;
-
-        transform.position += moveDirection * moveSpeed * Time.deltaTime;
+        
+        transform.position += moveDirection * (moveSpeed * Time.deltaTime);
 
         _lifeTimer -= Time.deltaTime;
         
@@ -51,8 +58,7 @@ public class FloatingText : MonoBehaviour
 
         if (_lifeTimer <= 0)
         {
-            FloatingTextPool.Instance.Return(this);
+            _pool?.Return(this);
         }
     }
 }
-

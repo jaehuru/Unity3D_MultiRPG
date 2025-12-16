@@ -9,18 +9,25 @@ namespace Jae.Manager
     public class GameManager : NetworkBehaviour
     {
         public static GameManager Instance { get; private set; }
+        
+        private SceneFlowManager _sceneFlowManager;
+        private AuthManager _authManager;
+        private NetworkManager _networkManager;
 
         private void Awake()
         {
             if (Instance != null && Instance != this)
             {
                 Destroy(gameObject);
+                return;
             }
-            else
-            {
-                Instance = this;
-                DontDestroyOnLoad(gameObject);
-            }
+            
+            Instance = this;
+            DontDestroyOnLoad(gameObject);
+            
+            _sceneFlowManager = SceneFlowManager.Instance;
+            _authManager = AuthManager.Instance;
+            _networkManager = NetworkManager.Singleton;
         }
 
 
@@ -33,30 +40,30 @@ namespace Jae.Manager
         private IEnumerator LogoutCoroutine()
         {
             // 1. Shutdown the network connection
-            if (NetworkManager.Singleton != null)
+            if (_networkManager != null)
             {
-                NetworkManager.Singleton.Shutdown();
+                _networkManager.Shutdown();
             }
             
             // 2. Clear authentication token
-            if (AuthManager.Instance != null)
+            if (_authManager != null)
             {
-                AuthManager.Instance.ClearStoredToken();
+                _authManager.ClearStoredToken();
             }
 
             // 3. Wait a frame for shutdown processes to complete
             yield return null;
 
             // 4. Load the main menu/login scene
-            SceneFlowManager.Instance.LoadLoginScene();
+            _sceneFlowManager?.LoadLoginScene();
         }
 
         public void QuitApplication()
         {
             // If in a network session, shut it down first
-            if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening)
+            if (_networkManager != null && _networkManager.IsListening)
             {
-                NetworkManager.Singleton.Shutdown();
+                _networkManager.Shutdown();
             }
 #if UNITY_EDITOR
             UnityEditor.EditorApplication.isPlaying = false;

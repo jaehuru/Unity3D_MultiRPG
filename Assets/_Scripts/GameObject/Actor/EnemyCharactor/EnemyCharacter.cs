@@ -59,7 +59,6 @@ public class EnemyCharacter : NetworkBehaviour,
     {
         if (TryGetComponent<Collider>(out var col)) col.enabled = newValue;
         
-        // GetComponentInChildren로 Renderer를 찾아야 SkinnedMeshRenderer 등을 포함할 수 있음
         var mainRenderer = GetComponentInChildren<Renderer>();
         if (mainRenderer != null) mainRenderer.enabled = newValue;
 

@@ -55,22 +55,28 @@ namespace Jae.Services
     {
         private readonly string _loadUrl;
         private readonly string _saveUrl;
+        private readonly WebRequestAdapter _webRequestAdapter;
+
 
         public PlayerDataService(string baseUrl)
         {
             _loadUrl = baseUrl + "load";
             _saveUrl = baseUrl + "save";
+            // 생성자에서 인스턴스 캐싱
+            _webRequestAdapter = WebRequestAdapter.Instance;
         }
 
         public async Task<PlayerData> LoadPlayerData(string jwtToken)
         {
             var headers = new Dictionary<string, string> { { "Authorization", "Bearer " + jwtToken } };
-
-            WebRequestResult result = await WebRequestAdapter.Instance.GetAsync(_loadUrl, headers);
+            
+            WebRequestResult result = await _webRequestAdapter.GetAsync(_loadUrl, headers);
 
             if (!result.Success)
             {
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
                 Debug.LogError($"PlayerDataService Load Error: {result.Error}");
+#endif
                 return null;
             }
             
@@ -82,7 +88,9 @@ namespace Jae.Services
         {
             if (dataToSave == null)
             {
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
                 Debug.LogError("[PlayerDataService] Data to save is null.");
+#endif
                 return false;
             }
             
@@ -94,12 +102,14 @@ namespace Jae.Services
                 { "Authorization", "Bearer " + jwtToken },
                 { "Content-Type", "application/json" }
             };
-
-            WebRequestResult result = await WebRequestAdapter.Instance.PostAsync(_saveUrl, jsonPayload, headers);
+            
+            WebRequestResult result = await _webRequestAdapter.PostAsync(_saveUrl, jsonPayload, headers);
             
             if (!result.Success)
             {
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
                  Debug.LogError($"PlayerDataService Save Error: {result.Error}");
+#endif
             }
             
             return result.Success;

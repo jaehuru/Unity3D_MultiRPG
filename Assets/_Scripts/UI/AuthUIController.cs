@@ -3,7 +3,6 @@ using UnityEngine;
 using TMPro; 
 using UnityEngine.UI;
 using Unity.Netcode;
-using UnityEngine.SceneManagement;
 // Project
 using Jae.Manager; 
 using Jae.Application; 

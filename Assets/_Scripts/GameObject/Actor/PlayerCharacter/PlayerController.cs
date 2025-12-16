@@ -17,6 +17,8 @@ public class PlayerController : NetworkBehaviour
     [SerializeField] private float autoSaveInterval = 10f;
     
     private PlayerCharacter _playerCharacter;
+    private PlayerSessionManager _sessionManager;
+    private CombatManager _combatManager;
 
     // --- Input Handling (Client-side) ---
     private Vector2 _moveInput;
@@ -41,6 +43,11 @@ public class PlayerController : NetworkBehaviour
         }
 
         _playerCharacter = GetComponent<PlayerCharacter>();
+        if (IsServer)
+        {
+            _sessionManager = PlayerSessionManager.Instance;
+            _combatManager = CombatManager.Instance;
+        }
     }
 
     private void Update()
@@ -72,7 +79,9 @@ public class PlayerController : NetworkBehaviour
         } 
         else 
         {
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
             Debug.LogError($"[PlayerController] _playerCharacter is null in HandleOwnerMovement!");
+#endif
         }
     }
 
@@ -88,7 +97,7 @@ public class PlayerController : NetworkBehaviour
 
     private void RequestSave()
     {
-        PlayerSessionManager.Instance?.RequestSavePosition(OwnerClientId, transform.position);
+        _sessionManager?.RequestSavePosition(OwnerClientId, transform.position);
     }
 
 
@@ -115,7 +124,7 @@ public class PlayerController : NetworkBehaviour
     [ServerRpc]
     private void RequestAttackServerRpc()
     {
-        if (CombatManager.Instance == null) return;
-        CombatManager.Instance.PlayerAttackRequestServerRpc(OwnerClientId);
+        if (_combatManager == null) return;
+        _combatManager.PlayerAttackRequestServerRpc(OwnerClientId);
     }
 }
