@@ -4,12 +4,13 @@ using UnityEngine;
 using Unity.Netcode;
 using Unity.Collections;
 using UnityEngine.AI;
+using Unity.Netcode.Components;
 // Project
 using Jae.Common;
-using Jae.Manager;
 
 [RequireComponent(typeof(NavMeshAgent))]
 [RequireComponent(typeof(EnemyAIController))]
+[RequireComponent(typeof(NetworkTransform))]
 public class EnemyCharacter : NetworkBehaviour,
     IActor,
     ICombatant,
@@ -26,11 +27,13 @@ public class EnemyCharacter : NetworkBehaviour,
     public Transform GetTransform() => transform;
 
     private NavMeshAgent _agent;
+    private NetworkTransform _networkTransform;
     private IStatProvider _statProvider;
     private IAttackHandler _attackHandler;
     private EnemyHealth _enemyHealth;
 
     // --- Stats ---
+    public readonly NetworkVariable<bool> IsActive = new(true, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
     private readonly NetworkVariable<float> _currentHealth = new(50f, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
     private readonly NetworkVariable<float> _maxHealth = new(50f, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
     private readonly NetworkVariable<FixedString32Bytes> _networkEnemyName = new("Goblin", writePerm: NetworkVariableWritePermission.Server);
@@ -52,42 +55,39 @@ public class EnemyCharacter : NetworkBehaviour,
     public float GetHealthRatio() => _maxHealth.Value > 0 ? _currentHealth.Value / _maxHealth.Value : 0f;
     public NetworkVariable<FixedString32Bytes> CharacterName => _networkEnemyName;
 
-    public void Activate()
+    private void OnActiveStateChanged(bool previousValue, bool newValue)
     {
-        if (TryGetComponent<Collider>(out var col)) col.enabled = true;
-        if (TryGetComponent<Renderer>(out var rend)) rend.enabled = true;
+        if (TryGetComponent<Collider>(out var col)) col.enabled = newValue;
+        
+        var mainRenderer = GetComponentInChildren<Renderer>();
+        if (mainRenderer != null) mainRenderer.enabled = newValue;
 
         if (TryGetComponent<NavMeshAgent>(out var agent))
         {
-            agent.enabled = true;
-            if (agent.isOnNavMesh)
+            agent.enabled = newValue;
+            if (newValue && agent.isOnNavMesh)
             {
                 agent.isStopped = false;
+            }
+            else if (!newValue && agent.isOnNavMesh)
+            {
+                agent.isStopped = true;
             }
         }
         if (TryGetComponent<EnemyAIController>(out var aiController))
         {
-            aiController.enabled = true;
+            aiController.enabled = newValue;
         }
+    }
+
+    public void Activate()
+    {
+        if (IsServer) IsActive.Value = true;
     }
 
     public void Deactivate()
     {
-        if (TryGetComponent<Collider>(out var col)) col.enabled = false;
-        if (TryGetComponent<Renderer>(out var rend)) rend.enabled = false;
-
-        if (TryGetComponent<NavMeshAgent>(out var agent))
-        {
-            if (agent.isOnNavMesh)
-            {
-                agent.isStopped = true;
-            }
-            agent.enabled = false;
-        }
-        if (TryGetComponent<EnemyAIController>(out var aiController))
-        {
-            aiController.enabled = false;
-        }
+        if (IsServer) IsActive.Value = false;
     }
 
 #region Interface Implementations
@@ -154,8 +154,11 @@ public class EnemyCharacter : NetworkBehaviour,
     public void Move(Vector3 direction, float deltaTime) { if(_agent.enabled) _agent.Move(direction * deltaTime); }
     public void Teleport(Vector3 pos)
     {
-        if (_agent.enabled) _agent.Warp(pos);
-        else transform.position = pos;
+        if (IsServer)
+        {
+            if (_agent.enabled) _agent.Warp(pos);
+            _networkTransform.Teleport(pos, transform.rotation, transform.localScale);
+        }
     }
 
     // IAnimPlayable
@@ -223,6 +226,7 @@ public class EnemyCharacter : NetworkBehaviour,
     private void Awake()
     {
         _agent = GetComponent<NavMeshAgent>();
+        _networkTransform = GetComponent<NetworkTransform>();
         _enemyHealth = new EnemyHealth(this);
 
         _statProvider = this;
@@ -232,10 +236,13 @@ public class EnemyCharacter : NetworkBehaviour,
     public override void OnNetworkSpawn()
     {
         base.OnNetworkSpawn();
+        IsActive.OnValueChanged += OnActiveStateChanged;
+        OnActiveStateChanged(false, IsActive.Value);
     }
 
     public override void OnNetworkDespawn()
     {
         base.OnNetworkDespawn();
+        IsActive.OnValueChanged -= OnActiveStateChanged;
     }
 }

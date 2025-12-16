@@ -46,7 +46,9 @@ public class FloatingTextPool : MonoBehaviour
     {
         if (_pool.Count == 0)
         {
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
             Debug.LogWarning("[FloatingTextPool] Pool empty, creating new instance on the fly.");
+#endif
             CreateAndAddToPool();
         }
 

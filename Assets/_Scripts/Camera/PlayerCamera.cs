@@ -25,14 +25,7 @@ public class PlayerCamera : MonoBehaviour
 
     void Awake()
     {
-        if (CameraManager.Instance != null)
-        {
-            CameraManager.Instance.RegisterMainCamera(GetComponent<Camera>());
-        }
-        else
-        {
-            Debug.LogError("[PlayerCamera] CameraManager.Instance is not found. Make sure a CameraManager is in the scene.");
-        }
+
     }
 
     void Start()
@@ -77,6 +70,7 @@ public class PlayerCamera : MonoBehaviour
             Debug.LogError("PlayerCamera: FirstPersonAnchor or ThirdPersonAnchor not found as children of the player. Please create them.");
             enabled = false;
         }
+
     }
     
     public void SwitchView(bool isFirstPersonView)
@@ -84,11 +78,4 @@ public class PlayerCamera : MonoBehaviour
         _isFirstPerson = isFirstPersonView;
     }
 
-    private void OnDestroy()
-    {
-        if (CameraManager.Instance != null)
-        {
-            CameraManager.Instance.UnregisterMainCamera();
-        }
-    }
 }

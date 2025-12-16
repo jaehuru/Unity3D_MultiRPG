@@ -5,18 +5,24 @@ namespace Jae.Manager
     public class VFXManager : MonoBehaviour
     {
         public static VFXManager Instance { get; private set; }
+        
+        private FloatingTextPool _floatingTextPool;
 
         private void Awake()
         {
             if (Instance != null && Instance != this)
             {
                 Destroy(gameObject);
+                return;
             }
-            else
-            {
-                Instance = this;
-                DontDestroyOnLoad(gameObject);
-            }
+            
+            Instance = this;
+            DontDestroyOnLoad(gameObject);
+        }
+
+        private void Start()
+        {
+            _floatingTextPool = FloatingTextPool.Instance;
         }
 
         /// <summary>
@@ -26,13 +32,19 @@ namespace Jae.Manager
         /// <param name="damage">The damage amount to display.</param>
         public void ShowFloatingText(Vector3 position, int damage)
         {
-            if (FloatingTextPool.Instance == null)
+            if (_floatingTextPool == null)
             {
-                Debug.LogError("[VFXManager] FloatingTextPool instance not found!");
-                return;
+                _floatingTextPool = FloatingTextPool.Instance;
+                if (_floatingTextPool == null)
+                {
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
+                    Debug.LogError("[VFXManager] FloatingTextPool instance not found!");
+#endif
+                    return;
+                }
             }
 
-            FloatingText text = FloatingTextPool.Instance.Get();
+            FloatingText text = _floatingTextPool.Get();
             text.Show(damage, position);
         }
     }

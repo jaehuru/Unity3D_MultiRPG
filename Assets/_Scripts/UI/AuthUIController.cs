@@ -1,7 +1,8 @@
 // Unity
 using UnityEngine;
 using TMPro; 
-using UnityEngine.UI; 
+using UnityEngine.UI;
+using Unity.Netcode;
 // Project
 using Jae.Manager; 
 using Jae.Application; 
@@ -83,6 +84,11 @@ public class AuthUIController : MonoBehaviour
         {
             Debug.LogError("[AuthUIController] AuthManager.Instance is null. Is AuthManager GameObject in the scene and persistent?");
         }
+
+        if (NetworkManager.Singleton != null)
+        {
+            NetworkManager.Singleton.OnClientDisconnectCallback += HandleClientDisconnect;
+        }
     }
 
     private void OnDestroy()
@@ -93,6 +99,29 @@ public class AuthUIController : MonoBehaviour
             AuthManager.Instance.OnLoginFailure.RemoveListener(OnLoginFailureHandler);
             AuthManager.Instance.OnRegisterSuccess.RemoveListener(OnRegisterSuccessHandler);
             AuthManager.Instance.OnRegisterFailure.RemoveListener(OnRegisterFailureHandler);
+        }
+
+        if (NetworkManager.Singleton != null)
+        {
+            NetworkManager.Singleton.OnClientDisconnectCallback -= HandleClientDisconnect;
+        }
+    }
+
+    private void HandleClientDisconnect(ulong clientId)
+    {
+        if (NetworkManager.Singleton.IsServer)
+        {
+            return;
+        }
+        
+        string reason = NetworkManager.Singleton.DisconnectReason;
+        if (!string.IsNullOrEmpty(reason))
+        {
+            ShowLoginPanel($"Connection failed: {reason}");
+        }
+        else
+        {
+            ShowLoginPanel("Failed to connect to the server.");
         }
     }
     
@@ -117,7 +146,7 @@ public class AuthUIController : MonoBehaviour
             registerStatusText.text = "Registration Successful: " + message;
         }
         Debug.Log("[AuthUIController] Registration Successful: " + message);
-        ShowLoginPanel(); // Go back to login after successful registration
+        ShowLoginPanel();
     }
 
     private void OnRegisterFailureHandler(string message)

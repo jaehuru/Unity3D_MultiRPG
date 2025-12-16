@@ -30,6 +30,8 @@ namespace Jae.Manager
 
         private bool _initialEnemiesSpawned = false;
         private Dictionary<ICombatant, Vector3> _initialPositions = new Dictionary<ICombatant, Vector3>();
+        
+        private AIManager _aiManager;
 
 
         // Concrete implementation of ISpawnContext
@@ -71,11 +73,12 @@ namespace Jae.Manager
             if (Instance != null && Instance != this)
             {
                 Destroy(gameObject);
+                return;
             }
-            else
-            {
-                Instance = this;
-            }
+            
+            Instance = this;
+
+            _aiManager = AIManager.Instance;
         }
 
 
@@ -124,7 +127,9 @@ namespace Jae.Manager
             {
                 if (enemyInfo.enemyPrefab == null || enemyInfo.spawnPoint == null)
                 {
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
                     Debug.LogWarning("Incomplete enemy spawn info, skipping.");
+#endif
                     continue;
                 }
 
@@ -180,8 +185,9 @@ namespace Jae.Manager
                 Debug.LogError("[SpawnManager] HandleDeath: Dead combatant is null or destroyed.");
                 return;
             }
-
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
             Debug.Log($"[SpawnManager] {((Component)combatant).name}의 죽음을 처리합니다.");
+#endif
 
             var spawnable = combatant as ISpawnable;
             if (spawnable == null)
@@ -203,13 +209,15 @@ namespace Jae.Manager
 
         private void DespawnCombatant(ICombatant combatant)
         {
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
             Debug.Log($"[SpawnManager] {((Component)combatant).name}을(를) 디스폰합니다.");
+#endif
 
             var component = combatant as Component;
 
             if (component != null && component.TryGetComponent<EnemyAIController>(out var aiController))
             {
-                AIManager.Instance.Unregister(aiController);
+                _aiManager?.Unregister(aiController);
             }
 
             if (component != null && component.TryGetComponent<NetworkObject>(out var netObj))
@@ -227,7 +235,10 @@ namespace Jae.Manager
         {
             var spawnable = combatant as ISpawnable;
             var respawnPolicy = spawnable.GetRespawnPolicy();
-            (combatant as IStateActivable)?.Deactivate();
+            
+            if (combatant is PlayerCharacter player) player.IsActive.Value = false;
+            else if (combatant is EnemyCharacter enemy) enemy.IsActive.Value = false;
+
             TimeSpan delay = respawnPolicy.GetRespawnDelay(spawnable);
             yield return new WaitForSeconds((float)delay.TotalSeconds);
             ISpawnPoint point = respawnPolicy.SelectRespawnPoint(spawnable);
@@ -257,9 +268,13 @@ namespace Jae.Manager
 
             var health = combatant.GetHealth();
             health.Heal(health.Max);
-            (combatant as IStateActivable)?.Activate();
+            
+            if (combatant is PlayerCharacter playerToActivate) playerToActivate.IsActive.Value = true;
+            else if (combatant is EnemyCharacter enemyToActivate) enemyToActivate.IsActive.Value = true;
+            
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
             Debug.Log($"{((Component)combatant).name}이(가) {point.GetPosition()}에서 리스폰되었습니다.");
+#endif
         }
     }
 }
-    
