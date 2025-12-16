@@ -65,18 +65,15 @@ namespace Jae.Services
         public int id;
         public string username;
     }
-
-    // AuthService's Responsibilities (Pure C# Service):
-    // 1. Defines authentication-related API endpoints and request bodies.
-    // 2. Uses the WebRequestAdapter to execute web requests.
-    // 3. Parses the web request results into domain-specific results.
-    // 4. Is stateless and has no knowledge of Unity's lifecycle or game flow.
+    
     public class AuthService
     {
         private readonly string _baseUrl;
         private readonly string _registerUrl;
         private readonly string _loginUrl;
         private readonly string _validateUrl;
+        // --- 성능 최적화: 인스턴스 캐싱 ---
+        private readonly WebRequestAdapter _webRequestAdapter;
 
         public AuthService(string baseUrl)
         {
@@ -84,6 +81,7 @@ namespace Jae.Services
             _registerUrl = _baseUrl + "register";
             _loginUrl = _baseUrl + "login";
             _validateUrl = _baseUrl + "validateToken";
+            _webRequestAdapter = WebRequestAdapter.Instance;
         }
 
         public async Task<AuthRequestResult> RegisterUser(string username, string email, string password)
@@ -92,7 +90,7 @@ namespace Jae.Services
             string jsonPayload = JsonUtility.ToJson(requestDto);
             var headers = new Dictionary<string, string> { { "Content-Type", "application/json" } };
             
-            WebRequestResult result = await WebRequestAdapter.Instance.PostAsync(_registerUrl, jsonPayload, headers);
+            WebRequestResult result = await _webRequestAdapter.PostAsync(_registerUrl, jsonPayload, headers);
             
             if (!result.Success)
             {
@@ -108,8 +106,8 @@ namespace Jae.Services
             var requestDto = new LoginRequestDTO { username = username, password = password };
             string jsonPayload = JsonUtility.ToJson(requestDto);
             var headers = new Dictionary<string, string> { { "Content-Type", "application/json" } };
-
-            WebRequestResult result = await WebRequestAdapter.Instance.PostAsync(_loginUrl, jsonPayload, headers);
+            
+            WebRequestResult result = await _webRequestAdapter.PostAsync(_loginUrl, jsonPayload, headers);
 
             if (!result.Success)
             {
@@ -130,8 +128,8 @@ namespace Jae.Services
             var requestDto = new ValidateTokenRequestDTO { token = jwtToken };
             string jsonPayload = JsonUtility.ToJson(requestDto);
             var headers = new Dictionary<string, string> { { "Content-Type", "application/json" } };
-
-            WebRequestResult result = await WebRequestAdapter.Instance.PostAsync(_validateUrl, jsonPayload, headers);
+            
+            WebRequestResult result = await _webRequestAdapter.PostAsync(_validateUrl, jsonPayload, headers);
 
             if (!result.Success)
             {

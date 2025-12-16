@@ -5,7 +5,7 @@ namespace Jae.Manager
     public class VFXManager : MonoBehaviour
     {
         public static VFXManager Instance { get; private set; }
-        
+
         private FloatingTextPool _floatingTextPool;
 
         private void Awake()
@@ -13,18 +13,16 @@ namespace Jae.Manager
             if (Instance != null && Instance != this)
             {
                 Destroy(gameObject);
-                return;
             }
-            
-            Instance = this;
-            DontDestroyOnLoad(gameObject);
-        }
+            else
+            {
+                Instance = this;
+                DontDestroyOnLoad(gameObject);
+            }
 
-        private void Start()
-        {
             _floatingTextPool = FloatingTextPool.Instance;
         }
-
+        
         /// <summary>
         /// Shows a floating damage text at a specific world position.
         /// </summary>

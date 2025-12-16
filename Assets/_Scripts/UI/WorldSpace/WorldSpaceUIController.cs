@@ -12,7 +12,7 @@ public abstract class WorldSpaceUIController : NetworkBehaviour
     protected GameObject worldSpaceCanvas;
 
     private VisibilityController _visibilityController;
-    private Transform _mainCameraTransform;
+    private bool _isFirstCameraCheck = true;
 
     protected Slider healthSlider;
     protected TextMeshProUGUI nameText;
@@ -175,21 +175,21 @@ public abstract class WorldSpaceUIController : NetworkBehaviour
     {
         if (!IsClient || worldSpaceCanvas == null || !worldSpaceCanvas.activeInHierarchy) return;
         
-        if (_mainCameraTransform == null)
+        Camera mainCamera = Camera.main;
+        if (mainCamera != null)
         {
-            if (Camera.main != null)
-            {
-                _mainCameraTransform = Camera.main.transform;
-            }
-            else
-            {
-                return;
-            }
+            worldSpaceCanvas.transform.rotation = mainCamera.transform.rotation;
+            _isFirstCameraCheck = true;
         }
-        
-        if(_mainCameraTransform != null) 
+        else
         {
-            worldSpaceCanvas.transform.rotation = _mainCameraTransform.rotation;
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
+            if (_isFirstCameraCheck)
+            {
+                Debug.LogWarning($"[{gameObject.name}] 빌보드: Camera.main을 찾을 수 없습니다. 씬에 'MainCamera' 태그가 지정된 카메라가 있는지 확인하세요.", this);
+                _isFirstCameraCheck = false;
+            }
+#endif
         }
     }
 }

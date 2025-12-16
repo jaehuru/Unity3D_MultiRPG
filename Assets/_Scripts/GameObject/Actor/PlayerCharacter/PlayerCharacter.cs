@@ -45,6 +45,10 @@ public class PlayerCharacter : NetworkBehaviour,
 
     // --- Interfaces ---
     private IHealth _playerHealth;
+    
+    // --- 성능 최적화를 위한 필드 ---
+    private HUDUIController _hudUIController;
+
 
     private void OnActiveStateChanged(bool previousValue, bool newValue)
     {
@@ -115,7 +119,7 @@ public class PlayerCharacter : NetworkBehaviour,
     {
         if (IsServer)
         {
-            if (PlayerSessionManager.Instance.TryGetClientInfo(OwnerClientId, out var clientInfo))
+            if (PlayerSessionManager.Instance != null && PlayerSessionManager.Instance.TryGetClientInfo(OwnerClientId, out var clientInfo))
             {
                 networkPlayerName.Value = clientInfo.Uid;
             }
@@ -163,7 +167,7 @@ public class PlayerCharacter : NetworkBehaviour,
 
     // IAnimPlayable
     public void Play(string state) { /* TODO: Animator logic */ }
-    public void CrossFade(string state, float duration) { /* TODO: Animator logic */ }
+    public void CrossFade(string state, float floatDuration) { /* TODO: Animator logic */ }
 
     // ISaveable
     public SaveData SerializeForSave() { throw new NotImplementedException(); }
@@ -197,7 +201,7 @@ public class PlayerCharacter : NetworkBehaviour,
 
         public event Action<DamageEvent> OnDamaged;
         public event Action OnDied;
-        public event Action<float, float> OnHealthUpdated; // ADDED
+        public event Action<float, float> OnHealthUpdated;
 
         public PlayerHealth(PlayerCharacter owner)
         {
@@ -289,9 +293,11 @@ public class PlayerCharacter : NetworkBehaviour,
                 }
             }
             
-            if (HUDUIController.Instance != null)
+            // HUDUIController 캐싱
+            HUDUIController hudUIController = HUDUIController.Instance;
+            if (hudUIController != null)
             {
-                HUDUIController.Instance.RegisterLocalPlayerHealth(this);
+                hudUIController.RegisterLocalPlayerHealth(this);
             }
         }
     }

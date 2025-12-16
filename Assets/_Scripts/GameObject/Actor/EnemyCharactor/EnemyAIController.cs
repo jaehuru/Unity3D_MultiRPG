@@ -31,6 +31,10 @@ public class EnemyAIController : NetworkBehaviour, IAIController
     private Vector3 _homePosition;
     private Coroutine _patrolCoroutine;
     private bool _isTransitioning;
+    
+    // --- 성능 최적화를 위한 필드 ---
+    private Collider[] _overlapResults;
+    [SerializeField] private int _maxOverlapResults = 10;
 
     public override void OnNetworkSpawn()
     {
@@ -44,13 +48,15 @@ public class EnemyAIController : NetworkBehaviour, IAIController
         _combatant = GetComponent<ICombatant>();
         _transform = transform;
         _homePosition = _transform.position;
-
+        
         if (AIManager.Instance != null)
         {
             AIManager.Instance.Register(this);
         }
         
         SetAIState(EnemyAIState.Idle);
+        
+        _overlapResults = new Collider[_maxOverlapResults];
     }
 
     public override void OnNetworkDespawn()
@@ -101,7 +107,10 @@ public class EnemyAIController : NetworkBehaviour, IAIController
                         _attackTimer = attackInterval;
                         if(nearestPlayer.TryGetComponent<ICombatant>(out var targetCombatant))
                         {
-                            CombatManager.Instance.ProcessAIAttack(_combatant, targetCombatant);
+                            if (CombatManager.Instance != null)
+                            {
+                                CombatManager.Instance.ProcessAIAttack(_combatant, targetCombatant);
+                            }
                         }
                     }
                 }
@@ -186,11 +195,9 @@ public class EnemyAIController : NetworkBehaviour, IAIController
     {
         while (_currentState == EnemyAIState.Patrol)
         {
-            // _agent가 활성화되어 있지 않거나 NavMesh에 배치되지 않았다면, 현재 반복을 건너뛴다.
             if (_agent == null || !_agent.enabled || !_agent.isOnNavMesh)
             {
-                // Debug.LogWarning("NavMeshAgent가 비활성화되었거나 NavMesh 위에 있지 않습니다. 순찰을 일시 중단합니다.");
-                yield return null; // 다음 프레임까지 기다렸다가 다시 체크
+                yield return null;
                 continue;
             }
 
@@ -207,12 +214,14 @@ public class EnemyAIController : NetworkBehaviour, IAIController
 
     private GameObject FindNearestPlayer()
     {
-        Collider[] hitColliders = Physics.OverlapSphere(_transform.position, chaseRange, LayerMask.GetMask("Player"));
+        int numColliders = Physics.OverlapSphereNonAlloc(_transform.position, chaseRange, _overlapResults, LayerMask.GetMask("Player"));
+        
         GameObject nearestPlayer = null;
         float minDistance = float.MaxValue;
 
-        foreach (var hitCollider in hitColliders)
+        for (int i = 0; i < numColliders; i++)
         {
+            var hitCollider = _overlapResults[i];
             if (hitCollider.TryGetComponent<ICombatant>(out var p) && p.GetHealth().Current > 0)
             {
                 if (p == _combatant) continue;

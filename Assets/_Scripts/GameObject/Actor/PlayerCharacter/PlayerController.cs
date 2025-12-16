@@ -17,8 +17,8 @@ public class PlayerController : NetworkBehaviour
     [SerializeField] private float autoSaveInterval = 10f;
     
     private PlayerCharacter _playerCharacter;
-    private PlayerSessionManager _sessionManager;
-    private CombatManager _combatManager;
+    // private PlayerSessionManager _sessionManager; // 캐싱 제거
+    // private CombatManager _combatManager; // 캐싱 제거
 
     // --- Input Handling (Client-side) ---
     private Vector2 _moveInput;
@@ -43,11 +43,6 @@ public class PlayerController : NetworkBehaviour
         }
 
         _playerCharacter = GetComponent<PlayerCharacter>();
-        if (IsServer)
-        {
-            _sessionManager = PlayerSessionManager.Instance;
-            _combatManager = CombatManager.Instance;
-        }
     }
 
     private void Update()
@@ -97,7 +92,7 @@ public class PlayerController : NetworkBehaviour
 
     private void RequestSave()
     {
-        _sessionManager?.RequestSavePosition(OwnerClientId, transform.position);
+        PlayerSessionManager.Instance?.RequestSavePosition(OwnerClientId, transform.position);
     }
 
 
@@ -124,7 +119,8 @@ public class PlayerController : NetworkBehaviour
     [ServerRpc]
     private void RequestAttackServerRpc()
     {
-        if (_combatManager == null) return;
-        _combatManager.PlayerAttackRequestServerRpc(OwnerClientId);
+        // 캐싱 제거 후 CombatManager.Instance에 직접 접근
+        if (CombatManager.Instance == null) return;
+        CombatManager.Instance.PlayerAttackRequestServerRpc(OwnerClientId);
     }
 }

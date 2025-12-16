@@ -67,7 +67,9 @@ public class HUDUIController : MonoBehaviour
         }
         else
         {
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
             Debug.LogError("RegisterLocalPlayerHealth: IHealth 컴포넌트를 찾을 수 없습니다! 전달된 ICombatant에 IHealth가 구현되어 있지 않습니다.", this);  
+#endif
         }          
     }
 
@@ -98,12 +100,12 @@ public class HUDUIController : MonoBehaviour
 
     public void OnLogoutButtonClicked()
     {
-        GameManager.Instance.RequestLogout();
+        GameManager.Instance?.RequestLogout();
     }
 
     public void OnQuitGameButtonClicked()
     {
-        GameManager.Instance.QuitApplication();
+        GameManager.Instance?.QuitApplication();
     }
 
     public void OnCancelButtonClicked()
