@@ -1,16 +1,18 @@
-using UnityEngine;
-using Unity.Netcode;
-using UnityEngine.AI;
-using UnityEngine.InputSystem;
-using Unity.Collections;
 using System;
 using System.Collections.Generic;
-using Jae.Commom;
+// Unity
+using UnityEngine;
+using Unity.Netcode;
+using UnityEngine.InputSystem;
+using Unity.Collections;
+using Unity.Netcode.Components;
+// Project
 using Jae.Common;
 using Jae.Manager;
 
 [RequireComponent(typeof(PlayerInput))]
 [RequireComponent(typeof(PlayerController))]
+[RequireComponent(typeof(NetworkTransform))]
 public class PlayerCharacter : NetworkBehaviour,
     IActor,
     IInteractor,
@@ -23,20 +25,45 @@ public class PlayerCharacter : NetworkBehaviour,
     ISaveable,
     IWorldSpaceUIProvider,
     IStatProvider,
-    IAttackHandler
+    IAttackHandler,
+    IStateActivable
 {
+    private NetworkTransform _networkTransform;
     private readonly NetworkVariable<FixedString32Bytes> networkPlayerName = new(writePerm: NetworkVariableWritePermission.Server);
+    public readonly NetworkVariable<bool> IsActive = new(true, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
 
     // --- Stats ---
     private readonly NetworkVariable<float> _currentHealth = new(100f, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
     private readonly NetworkVariable<float> _maxHealth = new(100f, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
     
+    [Header("Combat Settings")]
+    [SerializeField] private float attackDamage = 10f;
+    [SerializeField] private float attackRange = 2f;
+
     [Header("World Space UI")]
     [SerializeField] private GameObject playerWorldSpaceUIPrefab;
 
     // --- Interfaces ---
     private IHealth _playerHealth;
-    
+
+    private void OnActiveStateChanged(bool previousValue, bool newValue)
+    {
+        if (TryGetComponent<PlayerController>(out var controller)) controller.enabled = newValue;
+        if (TryGetComponent<Collider>(out var col)) col.enabled = newValue;
+        var mainRenderer = GetComponentInChildren<Renderer>();
+        if (mainRenderer != null) mainRenderer.enabled = newValue;
+    }
+
+    public void Activate()
+    {
+        if(IsServer) IsActive.Value = true;
+    }
+
+    public void Deactivate()
+    {
+        if(IsServer) IsActive.Value = false;
+    }
+
 #region Interface Implementations
     // IActor Implementation
     public string GetId() => OwnerClientId.ToString();
@@ -66,6 +93,8 @@ public class PlayerCharacter : NetworkBehaviour,
             StatType.Health => _currentHealth.Value,
             StatType.MaxHealth => _maxHealth.Value,
             StatType.MovementSpeed => 2.5f,
+            StatType.AttackDamage => attackDamage,
+            StatType.AttackRange => attackRange,
             _ => 0f,
         };
     }
@@ -92,19 +121,10 @@ public class PlayerCharacter : NetworkBehaviour,
             }
         }
         
-        if (IsOwner)
-        {
-            if (HUDUIController.Instance != null)
-            {
-                HUDUIController.Instance.RegisterLocalPlayerHealth(this);
-            }
-        }
-        
-        // Directly set position and rotation without NavMeshAgent
         if (ctx != null && ctx.Point != null && IsServer)
         {
              transform.position = ctx.Point.GetPosition();
-             transform.rotation = ctx.Point.GetRotation(); // Also set rotation
+             transform.rotation = ctx.Point.GetRotation();
         }
     }
     public IRespawnPolicy GetRespawnPolicy() => new PlayerRespawnPolicy(this);
@@ -120,7 +140,6 @@ public class PlayerCharacter : NetworkBehaviour,
     public DamageType GetDefaultDamageType() => DamageType.Physical;
 
     // IHUDUpdatable
-    public event Action<float, float> OnHealthChanged;
     public event Action<int> OnResourceChanged;
 
     // IInventoryHandler
@@ -139,7 +158,7 @@ public class PlayerCharacter : NetworkBehaviour,
     }
     public void Teleport(Vector3 pos)
     {
-        transform.position = pos;
+        _networkTransform.Teleport(pos, transform.rotation, transform.localScale);
     }
 
     // IAnimPlayable
@@ -162,8 +181,6 @@ public class PlayerCharacter : NetworkBehaviour,
     [ServerRpc]
     public void RequestMove_ServerRpc(MovementSnapshot snap)
     {
-        // The RPC is called on the server.
-        // The MovementManager (which is server-owned) handles the actual move logic.
         if (MovementManager.Instance != null)
         {
             MovementManager.Instance.ServerMove(OwnerClientId, snap);
@@ -180,13 +197,15 @@ public class PlayerCharacter : NetworkBehaviour,
 
         public event Action<DamageEvent> OnDamaged;
         public event Action OnDied;
+        public event Action<float, float> OnHealthUpdated; // ADDED
 
         public PlayerHealth(PlayerCharacter owner)
         {
             _owner = owner;
             _owner._currentHealth.OnValueChanged += (prev, curr) =>
             {
-                _owner.OnHealthChanged?.Invoke(curr, _owner._maxHealth.Value);
+                OnHealthUpdated?.Invoke(curr, Max);
+
                 if (curr < prev)
                 {
                     OnDamaged?.Invoke(new DamageEvent { Amount = prev - curr });
@@ -229,20 +248,57 @@ public class PlayerCharacter : NetworkBehaviour,
     private void Awake()
     {
         _playerHealth = new PlayerHealth(this);
+        _networkTransform = GetComponent<NetworkTransform>();
     }
 
     public override void OnNetworkSpawn()
     {
         base.OnNetworkSpawn();
+        
+        IsActive.OnValueChanged += OnActiveStateChanged;
+        OnActiveStateChanged(false, IsActive.Value);
+        
+        if (!IsLocalPlayer)
+        {
+            if (TryGetComponent<PlayerInput>(out var playerInput))
+            {
+                playerInput.enabled = false;
+            }
+            
+            Transform playerCameraTransform = transform.Find("Player Camera"); 
+            if (playerCameraTransform != null)
+            {
+                if (playerCameraTransform.TryGetComponent<Camera>(out var playerCamera))
+                {
+                    playerCamera.enabled = false;
+                }
+                if (playerCameraTransform.TryGetComponent<AudioListener>(out var audioListener))
+                {
+                    audioListener.enabled = false;
+                }
+            }
+        }
+        
+        if (IsLocalPlayer)
+        {
+            if (Camera.main != null)
+            {
+                if (Camera.main.TryGetComponent<PlayerCamera>(out var playerCameraScript))
+                {
+                    playerCameraScript.SetTarget(GetComponent<PlayerController>());
+                }
+            }
+            
+            if (HUDUIController.Instance != null)
+            {
+                HUDUIController.Instance.RegisterLocalPlayerHealth(this);
+            }
+        }
     }
 
     public override void OnNetworkDespawn()
     {
         base.OnNetworkDespawn();
-        
-        if (IsClient && WorldSpaceUIManager.Instance != null)
-        {
-            WorldSpaceUIManager.Instance.UnregisterUIProvider(NetworkObjectId);
-        }
+        IsActive.OnValueChanged -= OnActiveStateChanged;
     }
 }

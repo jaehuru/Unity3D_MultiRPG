@@ -1,6 +1,9 @@
+using System.Collections;
+// Unity
 using UnityEngine;
 using Unity.Netcode;
 using UnityEngine.SceneManagement;
+// Project
 using Jae.Manager;
 
 namespace Jae.Application
@@ -40,10 +43,17 @@ namespace Jae.Application
             }
 #endif
         }
-        
-        private void OnLoadCompleteHandler(ulong clientId, string sceneName, LoadSceneMode loadSceneMode)
+
+        private void OnLoadCompleteWrapper(ulong clientId, string sceneName, LoadSceneMode loadSceneMode)
         {
-            if (!NetworkManager.Singleton.IsServer) return;
+            StartCoroutine(OnLoadCompleteCoroutine(clientId, sceneName, loadSceneMode));
+        }
+        
+        private IEnumerator OnLoadCompleteCoroutine(ulong clientId, string sceneName, LoadSceneMode loadSceneMode)
+        {
+            yield return null;
+
+            if (!NetworkManager.Singleton.IsServer) yield break;
             
             if (clientId == NetworkManager.ServerClientId)
             {
@@ -80,7 +90,7 @@ namespace Jae.Application
 
                 if (SceneFlowManager.Instance != null) 
                 {
-                    SceneFlowManager.Instance.OnSceneLoadComplete -= OnLoadCompleteHandler;
+                    SceneFlowManager.Instance.OnSceneLoadComplete -= OnLoadCompleteWrapper;
                 }
             }
         }
@@ -127,7 +137,7 @@ namespace Jae.Application
                 if (SceneFlowManager.Instance != null)
                 {
                     
-                    SceneFlowManager.Instance.OnSceneLoadComplete += OnLoadCompleteHandler;
+                    SceneFlowManager.Instance.OnSceneLoadComplete += OnLoadCompleteWrapper;
                 }
                 else
                 {
@@ -180,7 +190,7 @@ namespace Jae.Application
             NetworkManager.Singleton.StartServer();
             if (SceneFlowManager.Instance != null)
             {
-                SceneFlowManager.Instance.OnSceneLoadComplete += OnLoadCompleteHandler;
+                SceneFlowManager.Instance.OnSceneLoadComplete += OnLoadCompleteWrapper;
             }
             else
             {

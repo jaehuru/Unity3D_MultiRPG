@@ -1,9 +1,9 @@
 using System;
+// Unity
 using UnityEngine;
-using Jae.Common;
 using Unity.Netcode;
 
-namespace Jae.Commom
+namespace Jae.Common
 {
     public struct DamageEvent
     {

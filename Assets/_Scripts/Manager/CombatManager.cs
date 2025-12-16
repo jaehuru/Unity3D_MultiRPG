@@ -1,150 +1,184 @@
-using Jae.Commom;
+// Unity
 using UnityEngine;
 using Unity.Netcode;
+// Project
 using Jae.Common;
 
-public class CombatManager : NetworkBehaviour
+
+namespace Jae.Manager
 {
-    public static CombatManager Instance { get; private set; }
-
-    private void Awake()
+    public class CombatManager : NetworkBehaviour
     {
-        if (Instance != null && Instance != this)
-        {
-            Destroy(gameObject);
-        }
-        else
-        {
-            Instance = this;
-        }
-    }
-
-    public override void OnNetworkSpawn()
-    {
-        if (Instance == null)
-        {
-            Instance = this;
-        }
-    }
-
-    [ServerRpc(InvokePermission = RpcInvokePermission.Everyone)]
-    public void PlayerAttackRequestServerRpc(ulong clientId)
-    {
-        if (!IsServer) return;
-
-        if (!NetworkManager.Singleton.ConnectedClients.TryGetValue(clientId, out var client) || client.PlayerObject == null)
-        {
-            Debug.LogError($"[CombatManager] Could not find PlayerObject for client {clientId}");
-            return;
-        }
+        public static CombatManager Instance { get; private set; }
         
-        var attackerObject = client.PlayerObject;
-        if (!attackerObject.TryGetComponent<ICombatant>(out var attacker))
-        {
-            Debug.LogError($"[CombatManager] Attacker {attackerObject.name} does not have an ICombatant interface.");
-            return;
-        }
+        private NetworkManager _networkManager;
+        private VFXManager _vfxManager;
         
-        ICombatant target = null;
-        var attackerTransform = (attacker as IActor).GetTransform();
-        if (attackerTransform == null) 
+        private ClientRpcParams _rpcParams;
+        private ulong[] _singleClientTarget = new ulong[1];
+
+        private void Awake()
         {
-            Debug.LogError($"[CombatManager] Attacker {attackerObject.name} does not have a valid transform via IActor.");
-            return;
-        }
-        float attackRange = attacker.GetAttackHandler()?.GetAttackType() == AttackType.Melee ? 2.0f : 20.0f; // TODO: Get range from stats/weapon
-        
-        if (Physics.Raycast(attackerTransform.position + Vector3.up * 0.5f, attackerTransform.forward, out var hit, attackRange + 1f))
-        {
-            if (hit.collider.TryGetComponent<ICombatant>(out var potentialTarget))
+            if (Instance != null && Instance != this)
             {
-                // Ensure the attacker is not targeting themselves
-                if (potentialTarget as Component != attacker as Component)
+                Destroy(gameObject);
+                return;
+            }
+            
+            Instance = this;
+            
+            _networkManager = NetworkManager.Singleton;
+            _vfxManager = VFXManager.Instance;
+            
+            _rpcParams = new ClientRpcParams();
+        }
+
+        [ServerRpc(InvokePermission = RpcInvokePermission.Everyone)]
+        public void PlayerAttackRequestServerRpc(ulong clientId)
+        {
+            if (!IsServer) return;
+
+            if (_networkManager == null || !_networkManager.ConnectedClients.TryGetValue(clientId, out var client) || client.PlayerObject == null)
+            {
+                Debug.LogError($"[CombatManager] Could not find PlayerObject for client {clientId}");
+                return;
+            }
+
+            var attackerObject = client.PlayerObject;
+            if (!attackerObject.TryGetComponent<ICombatant>(out var attacker))
+            {
+                Debug.LogError($"[CombatManager] Attacker {attackerObject.name} does not have an ICombatant interface.");
+                return;
+            }
+
+            ICombatant target = null;
+            var attackerTransform = (attacker as IActor).GetTransform();
+            if (attackerTransform == null)
+            {
+                Debug.LogError($"[CombatManager] Attacker {attackerObject.name} does not have a valid transform via IActor.");
+                return;
+            }
+
+            float attackRange = attacker.GetStats()?.GetStat(StatType.AttackRange) ?? 1.0f;
+
+            if (Physics.Raycast(attackerTransform.position + Vector3.up * 0.5f, attackerTransform.forward, out var hit, attackRange + 1f))
+            {
+                if (hit.collider.TryGetComponent<ICombatant>(out var potentialTarget) && potentialTarget as Component != attacker as Component)
                 {
                     target = potentialTarget;
                 }
             }
+
+            if (target != null)
+            {
+                ProcessAttack(attacker, target);
+            }
+            else
+            {
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
+                Debug.Log($"[CombatManager] {attackerObject.name}'s attack missed.");
+#endif
+            }
         }
-        
-        if (target != null)
+
+        public void ProcessAIAttack(ICombatant attacker, ICombatant target)
         {
+            if (!IsServer) return;
             ProcessAttack(attacker, target);
         }
-        else
-        {
-            // Optional: 공격이 아무것도 맞추지 못한 경우를 처리
-            Debug.Log($"[CombatManager] {attackerObject.name}'s attack missed.");
-        }
-    }
 
-    public void ProcessAIAttack(ICombatant attacker, ICombatant target)
-    {
-        if (!IsServer) return;
-        ProcessAttack(attacker, target);
-    }
-    
-    public void ProcessAttack(ICombatant attacker, ICombatant target)
-    {
-        if (!IsServer)
+        public void ProcessAttack(ICombatant attacker, ICombatant target)
         {
-            Debug.LogWarning("ProcessAttack should only be called on the server.");
-            return;
+            if (!IsServer)
+            {
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
+                Debug.LogWarning("ProcessAttack should only be called on the server.");
+#endif
+                return;
+            }
+
+            if (attacker == null || target == null)
+            {
+                Debug.LogError("Attacker or Target is null.");
+                return;
+            }
+
+            var attackerComp = attacker as Component;
+            var targetComp = target as Component;
+            if (attackerComp == null || targetComp == null)
+            {
+                Debug.LogError("Attacker or Target could not be cast to Component.");
+                return;
+            }
+
+            if (!ValidateHit(attacker, target))
+            {
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
+                Debug.Log($"[CombatManager] Hit validation failed for {attackerComp.name} attacking {targetComp.name}.");
+#endif
+                return;
+            }
+
+            var attackerStats = attacker.GetStats();
+            if (attackerStats == null)
+            {
+                Debug.LogError("Attacker has no IStatProvider.");
+                return;
+            }
+
+            float baseDamage = attackerStats.GetStat(StatType.AttackDamage);
+
+            var damageEvent = new DamageEvent
+            {
+                Amount = baseDamage,
+                Type = DamageType.Physical,
+                Attacker = attackerComp.gameObject,
+                Target = targetComp.gameObject
+            };
+
+            var targetHealth = target.GetHealth();
+            if (targetHealth == null)
+            {
+                Debug.LogError("Target has no IHealth component.");
+                return;
+            }
+
+            targetHealth.ApplyDamage(damageEvent);
+
+            if (targetComp.TryGetComponent<EnemyWorldSpaceUIController>(out var enemyUIController))
+            {
+                if (attackerComp is NetworkBehaviour attackerNetworkBehaviour)
+                {
+                    _singleClientTarget[0] = attackerNetworkBehaviour.OwnerClientId;
+                    _rpcParams.Send.TargetClientIds = _singleClientTarget;
+                    enemyUIController.ShowCombatUIForAttackerClientRpc(_rpcParams);
+                }
+            }
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
+            Debug.Log($"[CombatManager] {damageEvent.Attacker.name} dealt {damageEvent.Amount} damage to {damageEvent.Target.name}.");
+#endif
+
+            Vector3 targetPosition = (target as IActor).GetTransform().position;
+            ShowDamageVFX_ClientRpc(targetPosition, (int)baseDamage);
         }
 
-        if (attacker == null || target == null)
+        [ClientRpc]
+        private void ShowDamageVFX_ClientRpc(Vector3 position, int damage)
         {
-            Debug.LogError("Attacker or Target is null.");
-            return;
-        }
-        
-        if (!ValidateHit(attacker, target))
-        {
-            Debug.Log($"[CombatManager] Hit validation failed for {((attacker as Component)?.gameObject)?.name} attacking {((target as Component)?.gameObject)?.name}.");
-            return;
+            if (_vfxManager != null)
+            {
+                _vfxManager.ShowFloatingText(position + Vector3.up, damage);
+            }
         }
 
-        // 1. Get stats from the attacker
-        var attackerStats = attacker.GetStats();
-        if (attackerStats == null)
+        public bool ValidateHit(ICombatant attacker, ICombatant target)
         {
-            Debug.LogError("Attacker has no IStatProvider.");
-            return;
+            if (!IsServer) return false;
+
+            float distance = Vector3.Distance((attacker as IActor).GetTransform().position, (target as IActor).GetTransform().position);
+            float attackRange = attacker.GetStats()?.GetStat(StatType.AttackRange) ?? 1.0f;
+
+            return distance <= attackRange;
         }
-        
-        // 2. Calculate damage
-        // TODO: Replace with a proper IDamageCalculator pipeline
-        float baseDamage = attackerStats.GetStat(StatType.AttackDamage);
-
-        // 3. Create a damage event
-        var damageEvent = new DamageEvent
-        {
-            Amount = baseDamage,
-            Type = DamageType.Physical, // Or attacker.GetDefaultDamageType()
-            Attacker = (attacker as Component)?.gameObject,
-            Target = (target as Component)?.gameObject
-        };
-
-        // 4. Apply damage to the target's health component
-        var targetHealth = target.GetHealth();
-        if (targetHealth == null)
-        {
-            Debug.LogError("Target has no IHealth component.");
-            return;
-        }
-        
-        targetHealth.ApplyDamage(damageEvent);
-
-        Debug.Log($"[CombatManager] {damageEvent.Attacker.name} dealt {damageEvent.Amount} damage to {damageEvent.Target.name}.");
-    }
-    
-    public bool ValidateHit(ICombatant attacker, ICombatant target)
-    {
-        if (!IsServer) return false;
-        
-        // TODO: 타격 유효성 검사 로직을 구현(e.g., 거리 확인, 시야 확보)
-        float distance = Vector3.Distance((attacker as IActor).GetTransform().position, (target as IActor).GetTransform().position);
-        float attackRange = attacker.GetAttackHandler()?.GetAttackType() == AttackType.Melee ? 2.0f : 20.0f;
-        
-        return distance <= attackRange;
     }
 }

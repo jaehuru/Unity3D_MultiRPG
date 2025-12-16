@@ -1,10 +1,12 @@
-using UnityEngine;
-using Unity.Netcode;
 using System.Collections.Generic;
 using System;
 using System.Text;
 using System.Threading.Tasks;
 using System.Collections;
+// Unity
+using UnityEngine;
+using Unity.Netcode;
+// Project
 using Jae.Services;
 
 namespace Jae.Manager
@@ -19,7 +21,7 @@ namespace Jae.Manager
 
         private AuthService _authService;
         private PlayerDataService _playerDataService;
-
+        
         public class ClientInfo 
         {
             public string Uid;
@@ -35,33 +37,19 @@ namespace Jae.Manager
             if (Instance == null)
             {
                 Instance = this;
-                DontDestroyOnLoad(gameObject); // Ensure it persists
-                _authService = new AuthService(authUrl); // 서비스 초기화 (Awake에서 하는 것이 맞음)
-                _playerDataService = new PlayerDataService(playerDataUrl); // 서비스 초기화 (Awake에서 하는 것이 맞음)
+                DontDestroyOnLoad(gameObject);
+                _authService = new AuthService(authUrl);
+                _playerDataService = new PlayerDataService(playerDataUrl);
+                
             }
             else if (Instance != this)
             {
                 Destroy(gameObject);
             }
-            // else: Instance == this 인 경우 (다시 활성화 등)
-        }
-
-        public override void OnNetworkSpawn()
-        {
-            if (!IsServer) return;
-            base.OnNetworkSpawn();
-        }
-
-        public override void OnNetworkDespawn()
-        {
-            if (!IsServer) return;
-            base.OnNetworkDespawn();
         }
         
         public void HandleConnectionApprovalCallback(NetworkManager.ConnectionApprovalRequest request, NetworkManager.ConnectionApprovalResponse response)
         {
-            // 방어 로직: 현재 인스턴스가 유효한지 확인
-            // 이 MonoBehaviour가 파괴되었거나, 비활성화되었거나, 비활성 계층에 있는 경우 StartCoroutine 호출 불가
             if (this == null || !gameObject.activeInHierarchy || !enabled)
             {
                 response.Approved = false;
@@ -82,10 +70,29 @@ namespace Jae.Manager
             
             string jwtToken = "";
             bool shouldProcess = true;
-
-            if (request.ClientNetworkId == NetworkManager.ServerClientId && NetworkManager.Singleton.IsHost)
+            
+            NetworkManager networkManager = NetworkManager.Singleton;
+            if (networkManager == null)
             {
-                jwtToken = AuthManager.Instance.GetCurrentToken();
+                response.Approved = false;
+                response.Reason = "NetworkManager.Singleton is NULL at approval stage.";
+                response.Pending = false;
+                Debug.LogError("[PlayerSessionManager] ConnectionApprovalCoroutine: NetworkManager.Singleton is NULL. Ensure NetworkManager is set up correctly in the scene!");
+                yield break;
+            }
+
+            if (request.ClientNetworkId == NetworkManager.ServerClientId && networkManager.IsHost)
+            {
+                AuthManager authManager = AuthManager.Instance; // AuthManager.Instance를 여기서 가져와 null 체크
+                if (authManager == null)
+                {
+                    response.Approved = false;
+                    response.Reason = "AuthManager.Instance is NULL at approval stage.";
+                    response.Pending = false;
+                    Debug.LogError("[PlayerSessionManager] ConnectionApprovalCoroutine: AuthManager.Instance is NULL!");
+                    yield break;
+                }
+                jwtToken = authManager.GetCurrentToken();
             }
             else
             {
@@ -169,10 +176,6 @@ namespace Jae.Manager
             {
                 PlayerData dataToSave = new PlayerData(clientInfo.PlayerNetworkObject.transform.position);
                 bool saveSuccess = await _playerDataService.SavePlayerData(clientInfo.JwtToken, dataToSave);
-                if (!saveSuccess)
-                {
-                    Debug.LogWarning($"[PlayerSessionManager] Failed to save data for uid {clientInfo.Uid} on disconnect.");
-                }
             }
         }
         
@@ -206,10 +209,6 @@ namespace Jae.Manager
             {
                 connectedClientsData[clientId] = new ClientInfo { Uid = uid, JwtToken = jwtToken, PlayerSpawnPosition = spawnPosition };
             }
-            else
-            {
-                Debug.LogWarning($"[PlayerSessionManager] ClientInfo for Client: {clientId} already exists. Not adding.");
-            }
         }
         
         public void RequestSavePosition(ulong clientId, Vector3 position)
@@ -224,10 +223,6 @@ namespace Jae.Manager
             {
                 PlayerData dataToSave = new PlayerData(position);
                 bool saveSuccess = await _playerDataService.SavePlayerData(clientInfo.JwtToken, dataToSave);
-                if (!saveSuccess)
-                {
-                    Debug.LogWarning($"[PlayerSessionManager] Failed to autosave position for uid {clientInfo.Uid}.");
-                }
             }
         }
     }

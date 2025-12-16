@@ -1,5 +1,8 @@
+using System.Threading.Tasks;
+// Unity
 using UnityEngine;
 using UnityEngine.Events;
+// Project
 using Jae.Services;
 
 
@@ -81,7 +84,7 @@ namespace Jae.Manager
             _currentUserId = PlayerPrefs.GetString(USER_ID_KEY, "");
         }
 
-        public async void AttemptLogin(string username, string password)
+        public async Task AttemptLogin(string username, string password)
         {
             AuthRequestResult result = await _authService.LoginUser(username, password);
             if (result.Success)
@@ -104,7 +107,7 @@ namespace Jae.Manager
             }
         }
 
-        public async void AttemptRegister(string username, string email, string password)
+        public async Task AttemptRegister(string username, string email, string password)
         {
             AuthRequestResult result = await _authService.RegisterUser(username, email, password);
             if (result.Success)

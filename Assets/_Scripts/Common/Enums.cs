@@ -11,6 +11,7 @@ namespace Jae.Common
         MaxHealth,
         Mana,
         AttackDamage,
+        AttackRange,
         MagicDamage,
         Defense,
         MagicResistance,

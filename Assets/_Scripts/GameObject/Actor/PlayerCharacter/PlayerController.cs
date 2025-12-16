@@ -1,7 +1,9 @@
-using Jae.Commom;
+// Unity
 using UnityEngine;
 using Unity.Netcode;
 using UnityEngine.InputSystem;
+// Project
+using Jae.Common;
 using Jae.Manager;
 
 [RequireComponent(typeof(PlayerCharacter))]
@@ -15,6 +17,8 @@ public class PlayerController : NetworkBehaviour
     [SerializeField] private float autoSaveInterval = 10f;
     
     private PlayerCharacter _playerCharacter;
+    private PlayerSessionManager _sessionManager;
+    private CombatManager _combatManager;
 
     // --- Input Handling (Client-side) ---
     private Vector2 _moveInput;
@@ -39,6 +43,11 @@ public class PlayerController : NetworkBehaviour
         }
 
         _playerCharacter = GetComponent<PlayerCharacter>();
+        if (IsServer)
+        {
+            _sessionManager = PlayerSessionManager.Instance;
+            _combatManager = CombatManager.Instance;
+        }
     }
 
     private void Update()
@@ -60,16 +69,19 @@ public class PlayerController : NetworkBehaviour
         {
             MoveInput = _moveInput,
             LookDelta = _lookInput,
-            RotationSpeed = rotationSpeed, // Add rotationSpeed to snapshot
+            RotationSpeed = rotationSpeed,
             DeltaTime = Time.deltaTime
         };
         
         if (_playerCharacter != null)
         {
             _playerCharacter.RequestMove_ServerRpc(snapshot);
-        } else {
-            // Error handling can remain if _playerCharacter can legitimately be null
-            // Debug.LogError($"[PlayerController] _playerCharacter is null in HandleOwnerMovement!"); // Keep this specific error if it's a real problem
+        } 
+        else 
+        {
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
+            Debug.LogError($"[PlayerController] _playerCharacter is null in HandleOwnerMovement!");
+#endif
         }
     }
 
@@ -85,11 +97,11 @@ public class PlayerController : NetworkBehaviour
 
     private void RequestSave()
     {
-        PlayerSessionManager.Instance?.RequestSavePosition(OwnerClientId, transform.position);
+        _sessionManager?.RequestSavePosition(OwnerClientId, transform.position);
     }
 
 
-    #region Input System Events (Called by PlayerInput component)
+#region Input System Events (Called by PlayerInput component)
     public void OnMove(InputValue value)
     {
         if (!IsOwner) return;
@@ -107,12 +119,12 @@ public class PlayerController : NetworkBehaviour
         if (!IsOwner || !value.isPressed) return;
         RequestAttackServerRpc();
     }
-    #endregion
+#endregion
 
     [ServerRpc]
     private void RequestAttackServerRpc()
     {
-        if (CombatManager.Instance == null) return;
-        CombatManager.Instance.PlayerAttackRequestServerRpc(OwnerClientId);
+        if (_combatManager == null) return;
+        _combatManager.PlayerAttackRequestServerRpc(OwnerClientId);
     }
 }

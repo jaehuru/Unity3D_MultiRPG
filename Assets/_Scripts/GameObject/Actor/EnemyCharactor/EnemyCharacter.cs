@@ -1,13 +1,16 @@
 using System;
-using Jae.Commom;
+// Unity
 using UnityEngine;
 using Unity.Netcode;
 using Unity.Collections;
 using UnityEngine.AI;
+using Unity.Netcode.Components;
+// Project
 using Jae.Common;
 
 [RequireComponent(typeof(NavMeshAgent))]
 [RequireComponent(typeof(EnemyAIController))]
+[RequireComponent(typeof(NetworkTransform))]
 public class EnemyCharacter : NetworkBehaviour,
     IActor,
     ICombatant,
@@ -17,23 +20,27 @@ public class EnemyCharacter : NetworkBehaviour,
     ISaveable,
     IWorldSpaceUIProvider,
     IStatProvider,
-    IAttackHandler
+    IAttackHandler,
+    IStateActivable
 {
     public string GetId() => NetworkObjectId.ToString();
     public Transform GetTransform() => transform;
 
     private NavMeshAgent _agent;
+    private NetworkTransform _networkTransform;
     private IStatProvider _statProvider;
     private IAttackHandler _attackHandler;
     private EnemyHealth _enemyHealth;
 
     // --- Stats ---
+    public readonly NetworkVariable<bool> IsActive = new(true, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
     private readonly NetworkVariable<float> _currentHealth = new(50f, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
     private readonly NetworkVariable<float> _maxHealth = new(50f, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
     private readonly NetworkVariable<FixedString32Bytes> _networkEnemyName = new("Goblin", writePerm: NetworkVariableWritePermission.Server);
 
     [Header("Combat Settings")]
     [SerializeField] private int attackDamage = 5;
+    [SerializeField] private float attackRange = 2f;
 
     [Header("UI Settings")]
     [SerializeField] private GameObject EnemyWorldSpaceUIPrefab;
@@ -47,6 +54,41 @@ public class EnemyCharacter : NetworkBehaviour,
     public string GetDisplayName() => _networkEnemyName.Value.ToString();
     public float GetHealthRatio() => _maxHealth.Value > 0 ? _currentHealth.Value / _maxHealth.Value : 0f;
     public NetworkVariable<FixedString32Bytes> CharacterName => _networkEnemyName;
+
+    private void OnActiveStateChanged(bool previousValue, bool newValue)
+    {
+        if (TryGetComponent<Collider>(out var col)) col.enabled = newValue;
+        
+        var mainRenderer = GetComponentInChildren<Renderer>();
+        if (mainRenderer != null) mainRenderer.enabled = newValue;
+
+        if (TryGetComponent<NavMeshAgent>(out var agent))
+        {
+            agent.enabled = newValue;
+            if (newValue && agent.isOnNavMesh)
+            {
+                agent.isStopped = false;
+            }
+            else if (!newValue && agent.isOnNavMesh)
+            {
+                agent.isStopped = true;
+            }
+        }
+        if (TryGetComponent<EnemyAIController>(out var aiController))
+        {
+            aiController.enabled = newValue;
+        }
+    }
+
+    public void Activate()
+    {
+        if (IsServer) IsActive.Value = true;
+    }
+
+    public void Deactivate()
+    {
+        if (IsServer) IsActive.Value = false;
+    }
 
 #region Interface Implementations
 
@@ -69,6 +111,7 @@ public class EnemyCharacter : NetworkBehaviour,
             case StatType.Health: return _currentHealth.Value;
             case StatType.MaxHealth: return _maxHealth.Value;
             case StatType.AttackDamage: return attackDamage;
+            case StatType.AttackRange: return attackRange;
             default: return 0f;
         }
     }
@@ -111,8 +154,11 @@ public class EnemyCharacter : NetworkBehaviour,
     public void Move(Vector3 direction, float deltaTime) { if(_agent.enabled) _agent.Move(direction * deltaTime); }
     public void Teleport(Vector3 pos)
     {
-        if (_agent.enabled) _agent.Warp(pos);
-        else transform.position = pos;
+        if (IsServer)
+        {
+            if (_agent.enabled) _agent.Warp(pos);
+            _networkTransform.Teleport(pos, transform.rotation, transform.localScale);
+        }
     }
 
     // IAnimPlayable
@@ -133,12 +179,15 @@ public class EnemyCharacter : NetworkBehaviour,
 
         public event Action<DamageEvent> OnDamaged;
         public event Action OnDied;
+        public event Action<float, float> OnHealthUpdated; // ADDED
 
         public EnemyHealth(EnemyCharacter owner)
         {
             _owner = owner;
             _owner._currentHealth.OnValueChanged += (prev, curr) =>
             {
+                OnHealthUpdated?.Invoke(curr, Max);
+                
                 if (curr < prev)
                     OnDamaged?.Invoke(new DamageEvent { Amount = prev - curr });
                 if (curr <= 0 && prev > 0)
@@ -177,6 +226,7 @@ public class EnemyCharacter : NetworkBehaviour,
     private void Awake()
     {
         _agent = GetComponent<NavMeshAgent>();
+        _networkTransform = GetComponent<NetworkTransform>();
         _enemyHealth = new EnemyHealth(this);
 
         _statProvider = this;
@@ -186,10 +236,13 @@ public class EnemyCharacter : NetworkBehaviour,
     public override void OnNetworkSpawn()
     {
         base.OnNetworkSpawn();
+        IsActive.OnValueChanged += OnActiveStateChanged;
+        OnActiveStateChanged(false, IsActive.Value);
     }
 
     public override void OnNetworkDespawn()
     {
         base.OnNetworkDespawn();
+        IsActive.OnValueChanged -= OnActiveStateChanged;
     }
 }
