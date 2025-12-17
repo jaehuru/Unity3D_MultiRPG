@@ -143,7 +143,7 @@ namespace Jae.Manager
 
             targetHealth.ApplyDamage(damageEvent);
 
-            if (targetComp.TryGetComponent<EnemyWorldSpaceUIController>(out var enemyUIController))
+            if (targetComp.TryGetComponent<EnemyUIController>(out var enemyUIController))
             {
                 if (attackerComp is NetworkBehaviour attackerNetworkBehaviour)
                 {

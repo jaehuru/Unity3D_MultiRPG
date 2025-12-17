@@ -4,7 +4,7 @@ using Unity.Netcode;
 // Project
 using System.Collections;
 
-public class EnemyWorldSpaceUIController : WorldSpaceUIController
+public class EnemyUIController : WorldSpaceUIController
 {
     private bool _isCombatVisible = false;
     private Coroutine _combatUICoroutine;

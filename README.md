@@ -13,7 +13,7 @@
 ## Development Environment
 - **OS**          : Windows/Mac
 - **IDE**         : JetBrains Rider
-- **Game Engine** : Unity 6.3 LTS (6000.3.0f1)
+- **Game Engine** : Unity (6.3 LTS, 6000.3.2f1)
 - **Game Server** : Unity Netcode With GameObject (2.7.0)
 - **Backend**     : [Mock Account Server](https://github.com/jaehuru/RPG_Account_Server_Proto)
 

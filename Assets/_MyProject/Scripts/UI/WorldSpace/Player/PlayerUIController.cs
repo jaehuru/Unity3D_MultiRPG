@@ -1,5 +1,5 @@
 
-public class PlayerWorldSpaceUIController : WorldSpaceUIController
+public class PlayerUIController : WorldSpaceUIController
 {
     protected override bool ShouldLogicVisible()
     {
