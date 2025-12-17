@@ -61,6 +61,9 @@ namespace Jae.Common
     {
         public Vector2 MoveInput;
         public Vector2 LookDelta;
+        public bool IsJumping;
+        public bool IsSprinting;
+        public bool IsWalking;
         public float RotationSpeed;
         public float DeltaTime;
 
@@ -68,6 +71,9 @@ namespace Jae.Common
         {
             serializer.SerializeValue(ref MoveInput);
             serializer.SerializeValue(ref LookDelta);
+            serializer.SerializeValue(ref IsJumping);
+            serializer.SerializeValue(ref IsSprinting);
+            serializer.SerializeValue(ref IsWalking);
             serializer.SerializeValue(ref RotationSpeed);
             serializer.SerializeValue(ref DeltaTime);
         }

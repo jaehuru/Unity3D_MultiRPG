@@ -10,36 +10,51 @@ using Jae.Manager;
 public class PlayerController : NetworkBehaviour
 {
     [Header("Movement Settings")]
+    [Tooltip("서버로 전송될 캐릭터 회전 속도 (카메라 회전은 PlayerCameraController에서 처리)")]
     [SerializeField] private float rotationSpeed = 80f;
 
     [Header("Auto-Save Settings")]
     [Tooltip("자동 저장 간격(초)")]
     [SerializeField] private float autoSaveInterval = 10f;
     
+    // 이 컨트롤러가 연결된 PlayerCharacter
     private PlayerCharacter _playerCharacter;
-    // private PlayerSessionManager _sessionManager; // 캐싱 제거
-    // private CombatManager _combatManager; // 캐싱 제거
+    
+    // --- Public-Facing Input Properties (for other local components like camera) ---
+    public Vector2 MoveInput { get; private set; }
+    public Vector2 LookInput { get; private set; }
+    
+    // --- Internal Input State ---
+    private bool _jumpInput;
+    private bool _sprintInput;
+    private bool _walkInput;
 
-    // --- Input Handling (Client-side) ---
-    private Vector2 _moveInput;
-    private Vector2 _lookInput;
-
-    // --- Auto-Save (Server-side) ---
+    // --- Server-Side State ---
     private float _saveTimer = 0f;
-
-    public Vector2 GetLookInput() => _lookInput;
+    
+    // --- Cinemachine ---
+    // PlayerCharacter가 OnNetworkSpawn에서 할당해줍니다.
+    [HideInInspector]
+    public GameObject CinemachineCameraTarget;
 
     public override void OnNetworkSpawn()
     {
         base.OnNetworkSpawn();
-        if (!IsOwner && !IsServer)
+        
+        // 이 컴포넌트는 로컬 플레이어에서만 입력을 처리하고, 서버에서는 자동 저장을 처리합니다.
+        // 다른 클라이언트에서는 비활성화합니다.
+        if (!IsLocalPlayer && !IsServer)
         {
             enabled = false;
         }
         
-        if (!IsOwner && TryGetComponent<PlayerInput>(out var playerInput))
+        // PlayerInput 컴포넌트는 로컬 플레이어에게만 필요합니다.
+        if (!IsLocalPlayer)
         {
-            playerInput.enabled = false;
+            if (TryGetComponent<PlayerInput>(out var playerInput))
+            {
+                playerInput.enabled = false;
+            }
         }
 
         _playerCharacter = GetComponent<PlayerCharacter>();
@@ -47,23 +62,28 @@ public class PlayerController : NetworkBehaviour
 
     private void Update()
     {
+        // 서버는 자동 저장 로직을 처리합니다.
         if (IsServer)
         {
             HandleAutoSave();
         }
 
-        if (IsOwner)
+        // 로컬 플레이어는 입력을 서버로 전송합니다.
+        if (IsLocalPlayer)
         {
-            HandleOwnerMovement();
+            HandleMovementInput();
         }
     }
 
-    private void HandleOwnerMovement()
+    private void HandleMovementInput()
     {
         var snapshot = new MovementSnapshot
         {
-            MoveInput = _moveInput,
-            LookDelta = _lookInput,
+            MoveInput = this.MoveInput,
+            LookDelta = this.LookInput,
+            IsJumping = _jumpInput,
+            IsSprinting = _sprintInput,
+            IsWalking = _walkInput,
             RotationSpeed = rotationSpeed,
             DeltaTime = Time.deltaTime
         };
@@ -72,12 +92,9 @@ public class PlayerController : NetworkBehaviour
         {
             _playerCharacter.RequestMove_ServerRpc(snapshot);
         } 
-        else 
-        {
-#if DEVELOPMENT_BUILD || UNITY_EDITOR
-            Debug.LogError($"[PlayerController] _playerCharacter is null in HandleOwnerMovement!");
-#endif
-        }
+        
+        // 점프 입력은 한 번만 처리되도록 리셋
+        _jumpInput = false;
     }
 
     private void HandleAutoSave()
@@ -86,7 +103,11 @@ public class PlayerController : NetworkBehaviour
         if (_saveTimer >= autoSaveInterval)
         {
             _saveTimer = 0f;
-            RequestSave();
+            // 호스트가 아닌 경우에만 저장 요청 (데디케이티드 서버 환경)
+            if (OwnerClientId != NetworkManager.ServerClientId)
+            {
+                RequestSave();
+            }
         }
     }
 
@@ -94,33 +115,49 @@ public class PlayerController : NetworkBehaviour
     {
         PlayerSessionManager.Instance?.RequestSavePosition(OwnerClientId, transform.position);
     }
-
-
+    
 #region Input System Events (Called by PlayerInput component)
-    public void OnMove(InputValue value)
+    public void OnMove(InputAction.CallbackContext context)
     {
-        if (!IsOwner) return;
-        _moveInput = value.Get<Vector2>();
+        if (!IsLocalPlayer) return;
+        MoveInput = context.ReadValue<Vector2>();
     }
 
-    public void OnLook(InputValue value)
+    public void OnLook(InputAction.CallbackContext context)
     {
-        if (!IsOwner) return;
-        _lookInput = value.Get<Vector2>();
+        if (!IsLocalPlayer) return;
+        LookInput = context.ReadValue<Vector2>();
+    }
+    
+    public void OnJump(InputAction.CallbackContext context)
+    {
+        if (!IsLocalPlayer || !context.performed) return;
+        _jumpInput = true;
     }
 
-    public void OnAttack(InputValue value)
+    public void OnSprint(InputAction.CallbackContext context)
     {
-        if (!IsOwner || !value.isPressed) return;
+        if (!IsLocalPlayer) return;
+        _sprintInput = context.ReadValueAsButton();
+    }
+    
+    public void OnWalk(InputAction.CallbackContext context)
+    {
+        if (!IsLocalPlayer) return;
+        _walkInput = context.ReadValueAsButton();
+    }
+
+    public void OnAttack(InputAction.CallbackContext context)
+    {
+        if (!IsLocalPlayer || !context.performed) return;
         RequestAttackServerRpc();
     }
 #endregion
 
     [ServerRpc]
-    private void RequestAttackServerRpc()
+    private void RequestAttackServerRpc(ServerRpcParams rpcParams = default)
     {
-        // 캐싱 제거 후 CombatManager.Instance에 직접 접근
         if (CombatManager.Instance == null) return;
-        CombatManager.Instance.PlayerAttackRequestServerRpc(OwnerClientId);
+        CombatManager.Instance.PlayerAttackRequestServerRpc(rpcParams.Receive.SenderClientId);
     }
 }

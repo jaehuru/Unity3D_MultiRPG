@@ -17,7 +17,9 @@ namespace Jae.Common
         MagicResistance,
         CritChance,
         CritDamage,
-        MovementSpeed,
+        WalkSpeed,
+        RunSpeed,
+        SprintSpeed,
         AttackSpeed,
         CooldownReduction
     }

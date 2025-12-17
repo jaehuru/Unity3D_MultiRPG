@@ -13,6 +13,8 @@ using Jae.Manager;
 [RequireComponent(typeof(PlayerInput))]
 [RequireComponent(typeof(PlayerController))]
 [RequireComponent(typeof(NetworkTransform))]
+[RequireComponent(typeof(Animator))]
+[RequireComponent(typeof(CharacterController))]
 public class PlayerCharacter : NetworkBehaviour,
     IActor,
     IInteractor,
@@ -32,10 +34,29 @@ public class PlayerCharacter : NetworkBehaviour,
     private readonly NetworkVariable<FixedString32Bytes> networkPlayerName = new(writePerm: NetworkVariableWritePermission.Server);
     public readonly NetworkVariable<bool> IsActive = new(true, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
 
+    // --- Animation ---
+    private Animator _animator;
+    private int _animIDSpeedX;
+    private int _animIDSpeedY;
+    private int _animIDGrounded;
+    private int _animIDJumpTrigger;
+    private int _animIDFreeFall;
+    
+    // --- Networked Animation State ---
+    public readonly NetworkVariable<float> NetworkAnimationX = new(0f, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+    public readonly NetworkVariable<float> NetworkAnimationY = new(0f, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+    public readonly NetworkVariable<bool> NetworkAnimationGrounded = new(true, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+    public readonly NetworkVariable<bool> NetworkAnimationFreeFall = new(false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+    
     // --- Stats ---
     private readonly NetworkVariable<float> _currentHealth = new(100f, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
     private readonly NetworkVariable<float> _maxHealth = new(100f, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
     
+    [Header("Movement Settings")]
+    [SerializeField] private float walkSpeed = 2.0f;
+    [SerializeField] private float runSpeed = 5.0f;
+    [SerializeField] private float sprintSpeed = 7.5f;
+
     [Header("Combat Settings")]
     [SerializeField] private float attackDamage = 10f;
     [SerializeField] private float attackRange = 2f;
@@ -96,7 +117,9 @@ public class PlayerCharacter : NetworkBehaviour,
         {
             StatType.Health => _currentHealth.Value,
             StatType.MaxHealth => _maxHealth.Value,
-            StatType.MovementSpeed => 2.5f,
+            StatType.WalkSpeed => walkSpeed,
+            StatType.RunSpeed => runSpeed,
+            StatType.SprintSpeed => sprintSpeed,
             StatType.AttackDamage => attackDamage,
             StatType.AttackRange => attackRange,
             _ => 0f,
@@ -166,8 +189,14 @@ public class PlayerCharacter : NetworkBehaviour,
     }
 
     // IAnimPlayable
-    public void Play(string state) { /* TODO: Animator logic */ }
-    public void CrossFade(string state, float floatDuration) { /* TODO: Animator logic */ }
+    public void Play(string state)
+    {
+        if (_animator != null) _animator.Play(state);
+    }
+    public void CrossFade(string state, float floatDuration)
+    {
+        if (_animator != null) _animator.CrossFade(state, floatDuration);
+    }
 
     // ISaveable
     public SaveData SerializeForSave() { throw new NotImplementedException(); }
@@ -189,6 +218,14 @@ public class PlayerCharacter : NetworkBehaviour,
         {
             MovementManager.Instance.ServerMove(OwnerClientId, snap);
         }
+    }
+#endregion
+
+#region Client RPCs
+    [ClientRpc]
+    public void TriggerJumpAnimation_ClientRpc()
+    {
+        _animator.SetTrigger(_animIDJumpTrigger);
     }
 #endregion
 
@@ -253,6 +290,9 @@ public class PlayerCharacter : NetworkBehaviour,
     {
         _playerHealth = new PlayerHealth(this);
         _networkTransform = GetComponent<NetworkTransform>();
+        _animator = GetComponent<Animator>();
+        
+        AssignAnimationIDs();
     }
 
     public override void OnNetworkSpawn()
@@ -261,6 +301,12 @@ public class PlayerCharacter : NetworkBehaviour,
         
         IsActive.OnValueChanged += OnActiveStateChanged;
         OnActiveStateChanged(false, IsActive.Value);
+
+        // 모든 클라이언트에서 애니메이션 변수 구독
+        NetworkAnimationX.OnValueChanged += (prev, curr) => _animator.SetFloat(_animIDSpeedX, curr);
+        NetworkAnimationY.OnValueChanged += (prev, curr) => _animator.SetFloat(_animIDSpeedY, curr);
+        NetworkAnimationGrounded.OnValueChanged += (prev, curr) => _animator.SetBool(_animIDGrounded, curr);
+        NetworkAnimationFreeFall.OnValueChanged += (prev, curr) => _animator.SetBool(_animIDFreeFall, curr);
         
         if (!IsLocalPlayer)
         {
@@ -268,32 +314,23 @@ public class PlayerCharacter : NetworkBehaviour,
             {
                 playerInput.enabled = false;
             }
-            
-            Transform playerCameraTransform = transform.Find("Player Camera"); 
-            if (playerCameraTransform != null)
-            {
-                if (playerCameraTransform.TryGetComponent<Camera>(out var playerCamera))
-                {
-                    playerCamera.enabled = false;
-                }
-                if (playerCameraTransform.TryGetComponent<AudioListener>(out var audioListener))
-                {
-                    audioListener.enabled = false;
-                }
-            }
         }
         
         if (IsLocalPlayer)
         {
-            if (Camera.main != null)
+            if (TryGetComponent<PlayerController>(out var playerController))
             {
-                if (Camera.main.TryGetComponent<PlayerCamera>(out var playerCameraScript))
+                Transform cameraTarget = transform.Find("CinemachineCameraTarget");
+                if (cameraTarget)
                 {
-                    playerCameraScript.SetTarget(GetComponent<PlayerController>());
+                    playerController.CinemachineCameraTarget = cameraTarget.gameObject;
+                }
+                else
+                {
+                    Debug.LogError("[PlayerCharacter] 'CinemachineCameraTarget' 자식 오브젝트를 찾을 수 없습니다. 프리팹을 확인해주세요.");
                 }
             }
-            
-            // HUDUIController 캐싱
+
             HUDUIController hudUIController = HUDUIController.Instance;
             if (hudUIController != null)
             {
@@ -306,5 +343,14 @@ public class PlayerCharacter : NetworkBehaviour,
     {
         base.OnNetworkDespawn();
         IsActive.OnValueChanged -= OnActiveStateChanged;
+    }
+    
+    private void AssignAnimationIDs()
+    {
+        _animIDSpeedX = Animator.StringToHash("SpeedX");
+        _animIDSpeedY = Animator.StringToHash("SpeedY");
+        _animIDGrounded = Animator.StringToHash("Grounded");
+        _animIDJumpTrigger = Animator.StringToHash("JumpTrigger");
+        _animIDFreeFall = Animator.StringToHash("FreeFall");
     }
 }
