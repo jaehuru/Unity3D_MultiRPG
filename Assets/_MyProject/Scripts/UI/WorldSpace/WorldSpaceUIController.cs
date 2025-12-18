@@ -5,6 +5,7 @@ using UnityEngine.UI;
 using TMPro;
 // Project
 using Jae.Common;
+using Jae.Manager;
 
 public abstract class WorldSpaceUIController : NetworkBehaviour
 {
@@ -12,8 +13,7 @@ public abstract class WorldSpaceUIController : NetworkBehaviour
     protected GameObject worldSpaceCanvas;
 
     private VisibilityController _visibilityController;
-    private bool _isFirstCameraCheck = true;
-
+    
     protected Slider healthSlider;
     protected TextMeshProUGUI nameText;
 
@@ -27,6 +27,15 @@ public abstract class WorldSpaceUIController : NetworkBehaviour
         if (worldSpaceCanvasPrefab != null)
         {
             worldSpaceCanvas = Instantiate(worldSpaceCanvasPrefab, transform);
+            // UIManager에 UI 캔버스 등록
+            if (UIManager.Instance != null)
+            {
+                UIManager.Instance.RegisterWorldSpaceCanvas(worldSpaceCanvas.transform);
+            }
+            else
+            {
+                Debug.LogError("UIManager.Instance가 null입니다. 씬에 UIManager가 존재하는지 확인하세요.", this);
+            }
         }
         else
         {
@@ -110,6 +119,12 @@ public abstract class WorldSpaceUIController : NetworkBehaviour
 
     public override void OnNetworkDespawn()
     {
+        // UIManager에 UI 캔버스 등록 해제
+        if (UIManager.Instance != null && worldSpaceCanvas != null)
+        {
+            UIManager.Instance.UnregisterWorldSpaceCanvas(worldSpaceCanvas.transform);
+        }
+
         if (_visibilityController != null)
         {
             _visibilityController.OnVisibilityChanged -= HandleVisibilityChanged;
@@ -168,28 +183,6 @@ public abstract class WorldSpaceUIController : NetworkBehaviour
         {
             healthSlider.maxValue = maxHealth;
             healthSlider.value = currentHealth;
-        }
-    }
-    
-    private void LateUpdate()
-    {
-        if (!IsClient || worldSpaceCanvas == null || !worldSpaceCanvas.activeInHierarchy) return;
-        
-        Camera mainCamera = Camera.main;
-        if (mainCamera != null)
-        {
-            worldSpaceCanvas.transform.rotation = mainCamera.transform.rotation;
-            _isFirstCameraCheck = true;
-        }
-        else
-        {
-#if DEVELOPMENT_BUILD || UNITY_EDITOR
-            if (_isFirstCameraCheck)
-            {
-                Debug.LogWarning($"[{gameObject.name}] 빌보드: Camera.main을 찾을 수 없습니다. 씬에 'MainCamera' 태그가 지정된 카메라가 있는지 확인하세요.", this);
-                _isFirstCameraCheck = false;
-            }
-#endif
         }
     }
 }

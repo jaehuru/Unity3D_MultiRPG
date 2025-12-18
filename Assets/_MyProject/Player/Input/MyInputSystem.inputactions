@@ -50,6 +50,15 @@
                     "processors": "",
                     "interactions": "",
                     "initialStateCheck": false
+                },
+                {
+                    "name": "ToggleQuitMenu",
+                    "type": "Button",
+                    "id": "7c5d6190-7a4c-4ab7-a98e-f19aaf9e3edc",
+                    "expectedControlType": "",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
                 }
             ],
             "bindings": [
@@ -165,6 +174,28 @@
                 },
                 {
                     "name": "",
+                    "id": "dc7f14e3-26b4-442f-8d9d-338da8d85717",
+                    "path": "<Keyboard>/backquote",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "ToggleQuitMenu",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "73bf2d76-efcf-46cd-b744-4dd42f0188d9",
+                    "path": "<Gamepad>/start",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "ToggleQuitMenu",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
                     "id": "ed66cbff-2900-4a62-8896-696503cfcd31",
                     "path": "<Pointer>/delta",
                     "interactions": "",
@@ -245,41 +276,8 @@
         {
             "name": "UI",
             "id": "40745035-87c6-4323-ad75-c92e28cd0979",
-            "actions": [
-                {
-                    "name": "ToggleQuitMenu",
-                    "type": "Button",
-                    "id": "566a2711-f7a4-410c-890a-95a3aed1a453",
-                    "expectedControlType": "",
-                    "processors": "",
-                    "interactions": "",
-                    "initialStateCheck": false
-                }
-            ],
-            "bindings": [
-                {
-                    "name": "",
-                    "id": "8347eebf-4a1c-48a5-9cdf-f8a214ec3f7b",
-                    "path": "<Keyboard>/backquote",
-                    "interactions": "",
-                    "processors": "",
-                    "groups": "",
-                    "action": "ToggleQuitMenu",
-                    "isComposite": false,
-                    "isPartOfComposite": false
-                },
-                {
-                    "name": "",
-                    "id": "bd2d3e30-4a98-40b4-8d91-f5f258a39b8c",
-                    "path": "<Gamepad>/start",
-                    "interactions": "",
-                    "processors": "",
-                    "groups": "",
-                    "action": "ToggleQuitMenu",
-                    "isComposite": false,
-                    "isPartOfComposite": false
-                }
-            ]
+            "actions": [],
+            "bindings": []
         }
     ],
     "controlSchemes": [

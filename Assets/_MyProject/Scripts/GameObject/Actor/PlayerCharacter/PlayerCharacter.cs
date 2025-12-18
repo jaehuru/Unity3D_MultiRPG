@@ -67,8 +67,7 @@ public class PlayerCharacter : NetworkBehaviour,
     // --- Interfaces ---
     private IHealth _playerHealth;
     
-    // --- 성능 최적화를 위한 필드 ---
-    private HUDUIController _hudUIController;
+
 
 
     private void OnActiveStateChanged(bool previousValue, bool newValue)
@@ -331,10 +330,13 @@ public class PlayerCharacter : NetworkBehaviour,
                 }
             }
 
-            HUDUIController hudUIController = HUDUIController.Instance;
-            if (hudUIController != null)
+            if (UIManager.Instance != null)
             {
-                hudUIController.RegisterLocalPlayerHealth(this);
+                UIManager.Instance.RegisterLocalPlayer(this);
+            }
+            else
+            {
+                Debug.LogError("[PlayerCharacter] UIManager.Instance is null. Make sure a UIManager exists in the scene.");
             }
         }
     }
