@@ -1,6 +1,7 @@
 // Unity
 using Unity.Netcode;
 using UnityEngine;
+using Unity.Cinemachine;
 
 public class PlayerCameraController : NetworkBehaviour
 {
@@ -19,32 +20,55 @@ public class PlayerCameraController : NetworkBehaviour
     public override void OnNetworkSpawn()
     {
         base.OnNetworkSpawn();
-        if (!IsLocalPlayer)
+
+        var virtualCamera = GetComponentInChildren<CinemachineVirtualCamera>();
+        if (virtualCamera == null)
         {
+            Debug.LogError("[PlayerCameraController] 이 프리팹 내에서 CinemachineVirtualCamera를 찾을 수 없습니다!");
             enabled = false;
             return;
         }
 
-        _playerController = GetComponent<PlayerController>();
-        if (_playerController == null)
+        if (IsLocalPlayer)
         {
-            Debug.LogError("[PlayerCameraController] PlayerController를 찾을 수 없습니다!");
-            enabled = false;
-            return;
-        }
+            // 이 카메라가 메인 카메라가 되도록 우선순위를 높입니다.
+            virtualCamera.Priority = 11;
+            
+            // 로컬 플레이어의 카메라에서만 소리를 듣도록 AudioListener를 활성화합니다.
+            var audioListener = virtualCamera.GetComponent<AudioListener>();
+            if (audioListener != null)
+            {
+                audioListener.enabled = true;
+            }
+            
+            _playerController = GetComponent<PlayerController>();
+            if (_playerController == null)
+            {
+                Debug.LogError("[PlayerCameraController] PlayerController를 찾을 수 없습니다!");
+                enabled = false;
+                return;
+            }
         
-        if (CinemachineCameraTarget == null)
-        {
-            CinemachineCameraTarget = _playerController.CinemachineCameraTarget;
-        }
+            if (CinemachineCameraTarget == null)
+            {
+                CinemachineCameraTarget = _playerController.CinemachineCameraTarget;
+            }
 
-        if (CinemachineCameraTarget != null)
-        {
-            _cinemachineTargetYaw = CinemachineCameraTarget.transform.rotation.eulerAngles.y;
+            if (CinemachineCameraTarget != null)
+            {
+                _cinemachineTargetYaw = CinemachineCameraTarget.transform.rotation.eulerAngles.y;
+            }
+            else
+            {
+                Debug.LogError("[PlayerCameraController] CinemachineCameraTarget이 할당되지 않았습니다!");
+                enabled = false;
+            }
         }
         else
         {
-            Debug.LogError("[PlayerCameraController] CinemachineCameraTarget이 할당되지 않았습니다!");
+            // 다른 플레이어의 카메라는 우선순위를 낮추고 비활성화합니다.
+            virtualCamera.Priority = 0;
+            virtualCamera.enabled = false;
             enabled = false;
         }
     }
