@@ -152,6 +152,12 @@ public class PlayerController : NetworkBehaviour
         if (!IsLocalPlayer || !context.performed) return;
         RequestAttackServerRpc();
     }
+    
+    public void OnToggleQuitMenu(InputAction.CallbackContext context)
+    {
+        if (!IsLocalPlayer || !context.performed) return;
+        UIManager.Instance?.ToggleQuitMenu();
+    }
 #endregion
 
     [ServerRpc]

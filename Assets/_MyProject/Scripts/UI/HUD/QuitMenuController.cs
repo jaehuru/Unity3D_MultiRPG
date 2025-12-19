@@ -10,7 +10,7 @@ namespace Jae.UI
     /// </summary>
     public class QuitMenuController : MonoBehaviour
     {
-        private void Start()
+        private void Awake()
         {
             // UIManager의 이벤트에 구독
             if (UIManager.Instance != null)
@@ -21,7 +21,7 @@ namespace Jae.UI
             {
                 Debug.LogError("UIManager.Instance is null. Cannot subscribe to QuitMenu events.", this);
             }
-            
+
             // 시작 시에는 비활성화
             gameObject.SetActive(false);
         }

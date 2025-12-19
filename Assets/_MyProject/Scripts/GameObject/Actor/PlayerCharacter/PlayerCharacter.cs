@@ -345,6 +345,11 @@ public class PlayerCharacter : NetworkBehaviour,
     {
         base.OnNetworkDespawn();
         IsActive.OnValueChanged -= OnActiveStateChanged;
+        
+        // 네트워크 세션이 종료되어 이 오브젝트가 Despawn될 때,
+        // 씬에 남아있지 않도록 게임 오브젝트 자체를 파괴합니다.
+        // 이는 로그아웃 후 다시 로그인했을 때 플레이어가 중복 생성되는 문제를 해결합니다.
+        Destroy(gameObject);
     }
     
     private void AssignAnimationIDs()

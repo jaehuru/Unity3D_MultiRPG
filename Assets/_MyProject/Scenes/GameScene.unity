@@ -984,6 +984,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Quit Panel
       objectReference: {fileID: 0}
+    - target: {fileID: 1858122015544988889, guid: 742febf41853f4331b3223f04b0f3420, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 4970752139683806442, guid: 742febf41853f4331b3223f04b0f3420, type: 3}
       propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_Target
       value: 
@@ -1100,6 +1104,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 9094091394015772626, guid: 742febf41853f4331b3223f04b0f3420, type: 3}
+      propertyPath: m_SortingOrder
+      value: 1
+      objectReference: {fileID: 0}
     m_RemovedComponents:
     - {fileID: 5050801082084544364, guid: 742febf41853f4331b3223f04b0f3420, type: 3}
     m_RemovedGameObjects: []
@@ -1181,6 +1189,10 @@ PrefabInstance:
     - target: {fileID: 3046200590505481182, guid: dace7263c0812894c8be8dae0d66d86b, type: 3}
       propertyPath: m_Name
       value: UIManager
+      objectReference: {fileID: 0}
+    - target: {fileID: 3046200590505481182, guid: dace7263c0812894c8be8dae0d66d86b, type: 3}
+      propertyPath: m_IsActive
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 6556656126092650557, guid: dace7263c0812894c8be8dae0d66d86b, type: 3}
       propertyPath: m_LocalPosition.x
