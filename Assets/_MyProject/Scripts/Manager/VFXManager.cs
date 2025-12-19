@@ -17,17 +17,11 @@ namespace Jae.Manager
             else
             {
                 Instance = this;
-                DontDestroyOnLoad(gameObject);
             }
 
             _floatingTextPool = FloatingTextPool.Instance;
         }
         
-        /// <summary>
-        /// Shows a floating damage text at a specific world position.
-        /// </summary>
-        /// <param name="position">The world position to spawn the text.</param>
-        /// <param name="damage">The damage amount to display.</param>
         public void ShowFloatingText(Vector3 position, int damage)
         {
             if (_floatingTextPool == null)

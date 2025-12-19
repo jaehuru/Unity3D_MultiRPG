@@ -31,7 +31,6 @@ namespace Jae.Manager
         private bool _initialEnemiesSpawned = false;
         private Dictionary<ICombatant, Vector3> _initialPositions = new Dictionary<ICombatant, Vector3>();
         
-
         // Concrete implementation of ISpawnContext
         public class DefaultSpawnContext : ISpawnContext
         {
@@ -231,9 +230,7 @@ namespace Jae.Manager
                 }
             }
         }
-
-
-
+        
         private IEnumerator RespawnCoroutine(ICombatant combatant)
         {
             var spawnable = combatant as ISpawnable;

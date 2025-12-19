@@ -6,8 +6,9 @@ public class FloatingTextPool : MonoBehaviour
 {
     public static FloatingTextPool Instance { get; private set; }
 
-    [Header("Pool Settings")]
-    [SerializeField] private FloatingText floatingTextPrefab;
+    [Header("Pool Settings")] [SerializeField]
+    private FloatingText floatingTextPrefab;
+
     [SerializeField] private int initialPoolSize = 20;
 
     private Queue<FloatingText> _pool = new Queue<FloatingText>();
@@ -21,7 +22,6 @@ public class FloatingTextPool : MonoBehaviour
         else
         {
             Instance = this;
-            DontDestroyOnLoad(gameObject);
             InitializePool();
         }
     }

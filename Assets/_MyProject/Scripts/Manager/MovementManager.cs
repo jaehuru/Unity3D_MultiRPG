@@ -91,7 +91,7 @@ namespace Jae.Manager
                 HandleJumpAndGravity(playerCharacter, controller, movementData, snap);
 
                 // --- 2. 회전 처리 (Look 입력 기반) ---
-                // 마우스 움직임에 따라 캐릭터의 몸 전체를 회전시킵니다.
+                // 마우스 움직임에 따라 캐릭터의 몸 전체를 회전
                 float yaw = snap.LookDelta.x * snap.RotationSpeed * snap.DeltaTime;
                 playerNetworkObject.transform.Rotate(0f, yaw, 0f);
 
@@ -161,7 +161,7 @@ namespace Jae.Manager
             {
                 movementData.fallTimeoutDelta = FallTimeout;
 
-                // 점프/낙하 애니메이션 상태를 리셋합니다.
+                // 점프/낙하 애니메이션 상태를 리셋
                 playerCharacter.NetworkAnimationFreeFall.Value = false;
 
                 if (movementData.verticalVelocity < 0.0f)
@@ -172,7 +172,7 @@ namespace Jae.Manager
                 if (snap.IsJumping && movementData.jumpTimeoutDelta <= 0.0f)
                 {
                     movementData.verticalVelocity = Mathf.Sqrt(JumpHeight * -2f * Gravity);
-                    // 모든 클라이언트에게 점프 애니메이션 트리거를 발동시킵니다.
+                    // 모든 클라이언트에게 점프 애니메이션 트리거를 발동
                     playerCharacter.TriggerJumpAnimation_ClientRpc();
                 }
 
@@ -195,7 +195,7 @@ namespace Jae.Manager
                 }
             }
 
-            if (movementData.verticalVelocity < 53.0f) // terminal velocity
+            if (movementData.verticalVelocity < 53.0f)
             {
                 movementData.verticalVelocity += Gravity * snap.DeltaTime;
             }

@@ -1,6 +1,8 @@
 using System.Collections;
 //Unity
 using Unity.Netcode;
+// Project
+using Jae.Application;
 
 namespace Jae.Manager
 {
@@ -9,11 +11,6 @@ namespace Jae.Manager
     public class GameManager : NetworkBehaviour
     {
         public static GameManager Instance { get; private set; }
-        
-        // --- 성능 최적화: 인스턴스 캐싱 (가이드라인에 따라 제거됨) ---
-        // private SceneFlowManager _sceneFlowManager;
-        // private AuthManager _authManager;
-        // private NetworkManager _networkManager;
 
         private void Awake()
         {
@@ -25,11 +22,6 @@ namespace Jae.Manager
             
             Instance = this;
             DontDestroyOnLoad(gameObject);
-            
-            // 매니저 참조 캐싱 제거 (가이드라인에 따라)
-            // _sceneFlowManager = SceneFlowManager.Instance;
-            // _authManager = AuthManager.Instance;
-            // _networkManager = NetworkManager.Singleton;
         }
 
 
@@ -41,32 +33,38 @@ namespace Jae.Manager
 
         private IEnumerator LogoutCoroutine()
         {
-            // 1. Shutdown the network connection
-            // 캐싱 제거 후 NetworkManager.Singleton에 직접 접근
+            if (SceneFlowManager.Instance != null && NetworkGameOrchestrator.Instance != null)
+            {
+                SceneFlowManager.Instance.OnSceneLoadComplete -= NetworkGameOrchestrator.Instance.OnLoadCompleteWrapper;
+            }
+            
             if (NetworkManager.Singleton != null)
             {
                 NetworkManager.Singleton.Shutdown();
             }
             
-            // 2. Clear authentication token
-            // 캐싱 제거 후 AuthManager.Instance에 직접 접근
+            if (PlayerSessionManager.Instance != null)
+            {
+                PlayerSessionManager.Instance.ClearSessionData();
+            }
+            
+            if (UIManager.Instance != null)
+            {
+                UIManager.Instance.ClearRegisteredWorldSpaceCanvases();
+            }
+            
             if (AuthManager.Instance != null)
             {
                 AuthManager.Instance.ClearStoredToken();
             }
-
-            // 3. Wait a frame for shutdown processes to complete
+            
             yield return null;
-
-            // 4. Load the main menu/login scene
-            // 캐싱 제거 후 SceneFlowManager.Instance에 직접 접근
-            SceneFlowManager.Instance?.LoadLoginScene();
+            
+            SceneFlowManager.Instance?.LoadLoginScene();        
         }
 
         public void QuitApplication()
         {
-            // If in a network session, shut it down first
-            // 캐싱 제거 후 NetworkManager.Singleton에 직접 접근
             if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening)
             {
                 NetworkManager.Singleton.Shutdown();

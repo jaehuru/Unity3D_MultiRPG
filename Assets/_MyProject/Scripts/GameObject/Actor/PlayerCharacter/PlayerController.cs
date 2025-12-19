@@ -17,7 +17,6 @@ public class PlayerController : NetworkBehaviour
     [Tooltip("자동 저장 간격(초)")]
     [SerializeField] private float autoSaveInterval = 10f;
     
-    // 이 컨트롤러가 연결된 PlayerCharacter
     private PlayerCharacter _playerCharacter;
     
     // --- Public-Facing Input Properties (for other local components like camera) ---
@@ -33,7 +32,6 @@ public class PlayerController : NetworkBehaviour
     private float _saveTimer = 0f;
     
     // --- Cinemachine ---
-    // PlayerCharacter가 OnNetworkSpawn에서 할당해줍니다.
     [HideInInspector]
     public GameObject CinemachineCameraTarget;
 
@@ -41,14 +39,11 @@ public class PlayerController : NetworkBehaviour
     {
         base.OnNetworkSpawn();
         
-        // 이 컴포넌트는 로컬 플레이어에서만 입력을 처리하고, 서버에서는 자동 저장을 처리합니다.
-        // 다른 클라이언트에서는 비활성화합니다.
         if (!IsLocalPlayer && !IsServer)
         {
             enabled = false;
         }
-        
-        // PlayerInput 컴포넌트는 로컬 플레이어에게만 필요합니다.
+
         if (!IsLocalPlayer)
         {
             if (TryGetComponent<PlayerInput>(out var playerInput))
@@ -62,13 +57,11 @@ public class PlayerController : NetworkBehaviour
 
     private void Update()
     {
-        // 서버는 자동 저장 로직을 처리합니다.
         if (IsServer)
         {
             HandleAutoSave();
         }
-
-        // 로컬 플레이어는 입력을 서버로 전송합니다.
+        
         if (IsLocalPlayer)
         {
             HandleMovementInput();
@@ -93,7 +86,6 @@ public class PlayerController : NetworkBehaviour
             _playerCharacter.RequestMove_ServerRpc(snapshot);
         } 
         
-        // 점프 입력은 한 번만 처리되도록 리셋
         _jumpInput = false;
     }
 
@@ -103,7 +95,6 @@ public class PlayerController : NetworkBehaviour
         if (_saveTimer >= autoSaveInterval)
         {
             _saveTimer = 0f;
-            // 호스트가 아닌 경우에만 저장 요청 (데디케이티드 서버 환경)
             if (OwnerClientId != NetworkManager.ServerClientId)
             {
                 RequestSave();

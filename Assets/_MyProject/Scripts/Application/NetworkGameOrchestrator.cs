@@ -12,7 +12,7 @@ namespace Jae.Application
     {
         public static NetworkGameOrchestrator Instance { get; private set; }
 
-        private void Awake()
+        void Awake()
         {
             if (Instance != null && Instance != this)
             {
@@ -27,15 +27,6 @@ namespace Jae.Application
 
         void Start()
         {
-            if (NetworkManager.Singleton == null)
-            {
-                Debug.LogError("[NetworkGameOrchestrator] NetworkManager.Singleton is null. Ensure a NetworkManager exists in the scene.");
-                return;
-            }
-            
-            NetworkManager.Singleton.ConnectionApprovalCallback = PlayerSessionManager.Instance.HandleConnectionApprovalCallback;
-            NetworkManager.Singleton.OnClientDisconnectCallback += PlayerSessionManager.Instance.HandleClientDisconnected;
-
 #if UNITY_SERVER
             if (!UnityEngine.Application.isEditor)
             {
@@ -44,7 +35,8 @@ namespace Jae.Application
 #endif
         }
 
-        private void OnLoadCompleteWrapper(ulong clientId, string sceneName, LoadSceneMode loadSceneMode)
+
+        public void OnLoadCompleteWrapper(ulong clientId, string sceneName, LoadSceneMode loadSceneMode)
         {
             StartCoroutine(OnLoadCompleteCoroutine(clientId, sceneName, loadSceneMode));
         }
@@ -86,8 +78,8 @@ namespace Jae.Application
             if (NetworkManager.Singleton != null)
             {
                 NetworkManager.Singleton.ConnectionApprovalCallback -= PlayerSessionManager.Instance.HandleConnectionApprovalCallback;
-                NetworkManager.Singleton.OnClientDisconnectCallback -= PlayerSessionManager.Instance.HandleClientDisconnected;
-
+                // NetworkManager.Singleton.OnClientDisconnectCallback -= PlayerSessionManager.Instance.HandleClientDisconnected; // Removed as it's now subscribed in StartHost()
+                
                 if (SceneFlowManager.Instance != null) 
                 {
                     SceneFlowManager.Instance.OnSceneLoadComplete -= OnLoadCompleteWrapper;
@@ -118,6 +110,8 @@ namespace Jae.Application
                 return;
             }
             NetworkManager.Singleton.NetworkConfig.ConnectionData = System.Text.Encoding.UTF8.GetBytes(token);
+            NetworkManager.Singleton.ConnectionApprovalCallback = PlayerSessionManager.Instance.HandleConnectionApprovalCallback;
+            NetworkManager.Singleton.OnClientDisconnectCallback += PlayerSessionManager.Instance.HandleClientDisconnected;
 
             if (NetworkManager.Singleton.StartHost())
             {

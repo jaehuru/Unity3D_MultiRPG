@@ -225,5 +225,11 @@ namespace Jae.Manager
                 bool saveSuccess = await _playerDataService.SavePlayerData(clientInfo.JwtToken, dataToSave);
             }
         }
+        
+        public void ClearSessionData()
+        {
+            connectedClientsData.Clear();
+            Debug.Log("[PlayerSessionManager] All connected client session data cleared.");
+        }
     }
 }

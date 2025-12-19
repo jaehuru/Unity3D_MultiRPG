@@ -19,7 +19,6 @@ public class PlayerCameraController : NetworkBehaviour
     public override void OnNetworkSpawn()
     {
         base.OnNetworkSpawn();
-        // 로컬 플레이어가 아니면 이 컴포넌트를 비활성화합니다.
         if (!IsLocalPlayer)
         {
             enabled = false;
@@ -34,8 +33,6 @@ public class PlayerCameraController : NetworkBehaviour
             return;
         }
         
-        // PlayerCharacter에서 설정해준 CameraTarget을 가져옵니다.
-        // 이 컴포넌트가 PlayerController보다 늦게 초기화될 수 있으므로, 여기서도 타겟을 받아옵니다.
         if (CinemachineCameraTarget == null)
         {
             CinemachineCameraTarget = _playerController.CinemachineCameraTarget;
@@ -61,7 +58,6 @@ public class PlayerCameraController : NetworkBehaviour
     {
         if (_playerController == null) return;
         
-        // PlayerController는 입력만 받고, 실제 카메라 회전은 여기서 처리합니다.
         Vector2 lookInput = _playerController.LookInput;
         
         if (lookInput.sqrMagnitude >= 0.01f)
@@ -71,12 +67,10 @@ public class PlayerCameraController : NetworkBehaviour
             _cinemachineTargetYaw += lookInput.x * deltaTimeMultiplier;
             _cinemachineTargetPitch += lookInput.y * deltaTimeMultiplier;
         }
-
-        // clamp our rotations so our values are limited 360 degrees
+        
         _cinemachineTargetYaw = ClampAngle(_cinemachineTargetYaw, float.MinValue, float.MaxValue);
         _cinemachineTargetPitch = ClampAngle(_cinemachineTargetPitch, BottomClamp, TopClamp);
-
-        // Cinemachine will follow this target
+        
         CinemachineCameraTarget.transform.rotation = Quaternion.Euler(_cinemachineTargetPitch, _cinemachineTargetYaw, 0.0f);
     }
 
