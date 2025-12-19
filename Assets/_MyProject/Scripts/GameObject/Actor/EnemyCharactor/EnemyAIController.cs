@@ -101,7 +101,12 @@ public class EnemyAIController : NetworkBehaviour, IAIController
                 if (distanceToPlayer <= attackRange)
                 {
                     if(_agent.isStopped == false) _agent.isStopped = true;
-                    _transform.LookAt(nearestPlayer.transform.position);
+
+                    // 플레이어를 바라보되, Y축은 고정하여 머리가 기울지 않도록 합니다.
+                    Vector3 lookPos = nearestPlayer.transform.position;
+                    lookPos.y = _transform.position.y;
+                    _transform.LookAt(lookPos);
+
                     if (CanNormalAttack())
                     {
                         _attackTimer = attackInterval;
