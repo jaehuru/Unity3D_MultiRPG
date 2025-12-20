@@ -181,6 +181,10 @@ namespace Jae.Application
                 return;
             }
 
+            // 연결 승인 및 연결 끊김 콜백 설정
+            NetworkManager.Singleton.ConnectionApprovalCallback = PlayerSessionManager.Instance.HandleConnectionApprovalCallback;
+            NetworkManager.Singleton.OnClientDisconnectCallback += PlayerSessionManager.Instance.HandleClientDisconnected;
+
             NetworkManager.Singleton.StartServer();
             if (SceneFlowManager.Instance != null)
             {
