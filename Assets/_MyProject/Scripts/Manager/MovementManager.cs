@@ -1,8 +1,6 @@
 using System.Collections.Generic;
-// Unity
 using Unity.Netcode;
 using UnityEngine;
-// Project
 using Jae.Common;
 
 namespace Jae.Manager
@@ -11,46 +9,24 @@ namespace Jae.Manager
     {
         public static MovementManager Instance { get; private set; }
 
+        public const float TickRate = 1f / 60f;
+        private float _tickTimer;
+        public int CurrentTick { get; private set; }
+
+        [Header("Movement Settings")]
+        [SerializeField] private float rotationSpeed = 80f;
+        [SerializeField] private float movementSmoothTime = 0.1f;
+
         [Header("Player Physics")]
-        [Tooltip("The height the player can jump")]
-        public float JumpHeight = 1.2f;
-        [Tooltip("The character uses its own gravity value. The engine default is -9.81f")]
-        public float Gravity = -15.0f;
-        [Tooltip("Time required to pass before being able to jump again. Set to 0f to instantly jump again")]
-        public float JumpTimeout = 0.50f;
-        [Tooltip("Time required to pass before entering the fall state. Useful for walking down stairs")]
-        public float FallTimeout = 0.15f;
-        
+        [SerializeField] private float jumpHeight = 1.2f;
+        [SerializeField] private float gravity = -15.0f;
+        [SerializeField] private float jumpTimeout = 0.50f;
+        [SerializeField] private float fallTimeout = 0.15f;
+
         [Header("Player Grounded")]
-        [Tooltip("Useful for rough ground")]
-        public float GroundedOffset = -0.14f;
-        [Tooltip("The radius of the grounded check. Should match the radius of the CharacterController")]
-        public float GroundedRadius = 0.28f;
-        [Tooltip("What layers the character uses as ground")]
-        public LayerMask GroundLayers;
-        
-        [Header("Movement Smoothing")]
-        [Range(1f, 20f)]
-        public float movementSmooth = 6f;
-
-
-        // 각 플레이어의 이동 상태를 저장하는 내부 클래스
-        private class PlayerMovementData
-        {
-            public float speed;
-            public float verticalVelocity;
-            public float jumpTimeoutDelta;
-            public float fallTimeoutDelta;
-            public bool isGrounded;
-            // For Animation Smoothing
-            public float animationSpeedX;
-            public float animationSpeedY;
-        }
-
-        private Dictionary<ulong, PlayerMovementData> _playerMovementData;
-        private Dictionary<ulong, CharacterController> _playerCharacterControllers;
-        private Dictionary<ulong, PlayerCharacter> _playerCharacters;
-
+        [SerializeField] private float groundedOffset = -0.14f;
+        [SerializeField] private float groundedRadius = 0.28f;
+        [SerializeField] private LayerMask groundLayers;
 
         private void Awake()
         {
@@ -61,174 +37,126 @@ namespace Jae.Manager
             else
             {
                 Instance = this;
-                _playerMovementData = new Dictionary<ulong, PlayerMovementData>();
-                _playerCharacterControllers = new Dictionary<ulong, CharacterController>();
-                _playerCharacters = new Dictionary<ulong, PlayerCharacter>();
             }
         }
-        
-        public override void OnNetworkDespawn()
+
+        public override void OnNetworkSpawn()
         {
-            base.OnNetworkDespawn();
-            _playerMovementData.Clear();
-            _playerCharacterControllers.Clear();
-            _playerCharacters.Clear();
+            // 이 매니저는 서버와 모든 클라이언트에서 활성화되어야 하므로 아무것도 하지 않습니다.
+            // 내부 TickUpdate에서 IsClient, IsServer로 역할을 분리합니다.
         }
-
-        public void ServerMove(ulong clientId, MovementSnapshot snap)
+        
+        private void Update()
         {
-            if (!IsServer) return;
+            _tickTimer += Time.deltaTime;
 
-            if (PlayerSessionManager.Instance.TryGetPlayerNetworkObject(clientId, out var playerNetworkObject))
+            while (_tickTimer >= TickRate)
             {
-                // 데이터 및 컴포넌트 가져오기
-                var movementData = GetOrCreateMovementData(clientId);
-                var controller = GetOrCreateComponent<CharacterController>(clientId, playerNetworkObject, _playerCharacterControllers);
-                var playerCharacter = GetOrCreateComponent<PlayerCharacter>(clientId, playerNetworkObject, _playerCharacters);
-                if (controller == null || playerCharacter == null) return;
-                
-                // --- 1. 중력 및 점프 처리 ---
-                HandleJumpAndGravity(playerCharacter, controller, movementData, snap);
-
-                // --- 2. 회전 처리 (Look 입력 기반) ---
-                // 마우스 움직임에 따라 캐릭터의 몸 전체를 회전
-                float yaw = snap.LookDelta.x * snap.RotationSpeed * snap.DeltaTime;
-                playerNetworkObject.transform.Rotate(0f, yaw, 0f);
-
-                // --- 3. 이동 처리 (Strafe 방식) ---
-                IStatProvider stat = playerNetworkObject.GetComponent<IStatProvider>();
-                float walkSpeed = stat?.GetStat(StatType.WalkSpeed) ?? 2.0f;
-                float runSpeed = stat?.GetStat(StatType.RunSpeed) ?? 5.0f;
-                float sprintSpeed = stat?.GetStat(StatType.SprintSpeed) ?? 7.5f;
-
-                float targetSpeed;
-                if (snap.IsSprinting) targetSpeed = sprintSpeed;
-                else if (snap.IsWalking) targetSpeed = walkSpeed;
-                else targetSpeed = runSpeed;
-                
-                // 입력이 없으면 목표 속도를 0으로 설정
-                if (snap.MoveInput.magnitude < 0.01f)
-                {
-                    targetSpeed = 0.0f;
-                }
-                
-                // 가속/감속
-                float currentHorizontalSpeed = new Vector3(controller.velocity.x, 0.0f, controller.velocity.z).magnitude;
-                float speedOffset = 0.1f;
-                
-                if (currentHorizontalSpeed < targetSpeed - speedOffset || currentHorizontalSpeed > targetSpeed + speedOffset)
-                {
-                    movementData.speed = Mathf.Lerp(currentHorizontalSpeed, targetSpeed, snap.DeltaTime * movementSmooth);
-                    movementData.speed = Mathf.Round(movementData.speed * 1000f) / 1000f;
-                }
-                else
-                {
-                    movementData.speed = targetSpeed;
-                }
-                
-                // 이동 방향 계산 (카메라 기준이 아닌, 캐릭터가 현재 바라보는 방향 기준)
-                Vector3 inputDirection = new Vector3(snap.MoveInput.x, 0.0f, snap.MoveInput.y);
-                Vector3 moveDirection = playerNetworkObject.transform.right * inputDirection.x + playerNetworkObject.transform.forward * inputDirection.z;
-
-                // 최종 이동
-                controller.Move(moveDirection.normalized * (movementData.speed * snap.DeltaTime) + new Vector3(0.0f, movementData.verticalVelocity, 0.0f) * snap.DeltaTime);
-
-                // --- 4. 애니메이션 파라미터 설정 ---
-                float animationMultiplier;
-                if (snap.IsSprinting) animationMultiplier = 2.0f;
-                else if (snap.IsWalking) animationMultiplier = 0.5f;
-                else animationMultiplier = 1.0f;
-
-                float animTargetX = snap.MoveInput.x * animationMultiplier;
-                float animTargetY = snap.MoveInput.y * animationMultiplier;
-                
-                movementData.animationSpeedX = Mathf.Lerp(movementData.animationSpeedX, animTargetX, snap.DeltaTime * movementSmooth);
-                movementData.animationSpeedY = Mathf.Lerp(movementData.animationSpeedY, animTargetY, snap.DeltaTime * movementSmooth);
-                
-                playerCharacter.NetworkAnimationX.Value = movementData.animationSpeedX;
-                playerCharacter.NetworkAnimationY.Value = movementData.animationSpeedY;
+                _tickTimer -= TickRate;
+                TickUpdate();
+                CurrentTick++;
             }
         }
-        
-        private void HandleJumpAndGravity(PlayerCharacter playerCharacter, CharacterController controller, PlayerMovementData movementData, MovementSnapshot snap)
+
+        private void TickUpdate()
         {
-            Vector3 spherePosition = new Vector3(playerCharacter.transform.position.x, playerCharacter.transform.position.y - GroundedOffset, playerCharacter.transform.position.z);
-            movementData.isGrounded = Physics.CheckSphere(spherePosition, GroundedRadius, GroundLayers, QueryTriggerInteraction.Ignore);
+            // 로컬 플레이어가 있는 모든 클라이언트(Host 포함)에서 입력 처리 및 예측 실행
+            if (IsClient)
+            {
+                if (NetworkManager.Singleton?.LocalClient?.PlayerObject != null &&
+                    NetworkManager.Singleton.LocalClient.PlayerObject.TryGetComponent<PlayerCharacter>(out var pc))
+                {
+                    pc.ProcessLocalInput(CurrentTick);
+                }
+            }
+
+            // 서버(전용 서버 또는 호스트)에서 권위있는 시뮬레이션 실행
+            if (IsServer)
+            {
+                foreach (var client in NetworkManager.Singleton.ConnectedClients.Values)
+                {
+                    if (client.PlayerObject != null && client.PlayerObject.TryGetComponent<PlayerCharacter>(out var pc))
+                    {
+                        pc.ProcessServerMovement();
+                    }
+                }
+            }
+        }
+
+        // 결정론적 이동 시뮬레이션 함수
+        public void SimulateMovement(ref MovementState state, MovementInput input, IStatProvider statProvider)
+        {
+            // --- 1. 회전 처리 ---
+            float yaw = input.LookDelta.x * rotationSpeed * TickRate;
+            state.Rotation *= Quaternion.Euler(0f, yaw, 0f);
+
+            // --- 2. 속도 및 방향 결정 ---
+            float targetSpeed = GetTargetSpeed(input, statProvider);
             
-            playerCharacter.NetworkAnimationGrounded.Value = movementData.isGrounded;
+            // MoveTowards를 사용하여 결정론적 가속/감속 처리
+            state.HorizontalSpeed = Mathf.MoveTowards(state.HorizontalSpeed, targetSpeed, (targetSpeed > 0 ? 10f : 20f) * TickRate);
 
-            if (movementData.isGrounded)
+            Vector3 inputDirection = new Vector3(input.Move.x, 0.0f, input.Move.y).normalized;
+            Vector3 moveDirection = state.Rotation * inputDirection;
+            
+            Vector3 currentVelocity = moveDirection * state.HorizontalSpeed;
+            
+            // --- 3. 중력 및 점프 처리 ---
+            HandleJumpAndGravity(ref state, input, statProvider);
+
+            currentVelocity.y = state.Velocity.y;
+            state.Velocity = currentVelocity;
+            
+            // 위치 계산은 CharacterController가 담당하므로 여기서는 제거
+        }
+
+        private float GetTargetSpeed(MovementInput input, IStatProvider statProvider)
+        {
+            if (input.Move.magnitude < 0.1f) return 0f;
+
+            if (input.Sprint) return statProvider.GetStat(StatType.SprintSpeed);
+            if (input.Walk) return statProvider.GetStat(StatType.WalkSpeed);
+            return statProvider.GetStat(StatType.RunSpeed);
+        }
+
+        private void HandleJumpAndGravity(ref MovementState state, MovementInput input, IStatProvider statProvider)
+        {
+            // Ground Check는 물리적 Transform 기준으로 수행해야 함
+            Vector3 spherePosition = ((IActor)statProvider).GetTransform().position;
+            spherePosition.y += groundedOffset; // 오프셋 적용 방식 변경 가능
+            state.IsGrounded = Physics.CheckSphere(spherePosition, groundedRadius, groundLayers, QueryTriggerInteraction.Ignore);
+
+            if (state.IsGrounded)
             {
-                movementData.fallTimeoutDelta = FallTimeout;
-
-                // 점프/낙하 애니메이션 상태를 리셋
-                playerCharacter.NetworkAnimationFreeFall.Value = false;
-
-                if (movementData.verticalVelocity < 0.0f)
+                state.FallTimeoutDelta = fallTimeout;
+                if (state.Velocity.y < 0.0f)
                 {
-                    movementData.verticalVelocity = -2f;
+                    state.Velocity.y = -2f;
                 }
 
-                if (snap.IsJumping && movementData.jumpTimeoutDelta <= 0.0f)
+                if (input.Jump && state.JumpTimeoutDelta <= 0.0f)
                 {
-                    movementData.verticalVelocity = Mathf.Sqrt(JumpHeight * -2f * Gravity);
-                    // 모든 클라이언트에게 점프 애니메이션 트리거를 발동
-                    playerCharacter.TriggerJumpAnimation_ClientRpc();
+                    state.Velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
                 }
 
-                if (movementData.jumpTimeoutDelta >= 0.0f)
+                if (state.JumpTimeoutDelta >= 0.0f)
                 {
-                    movementData.jumpTimeoutDelta -= snap.DeltaTime;
+                    state.JumpTimeoutDelta -= TickRate;
                 }
             }
             else
             {
-                movementData.jumpTimeoutDelta = JumpTimeout;
-
-                if (movementData.fallTimeoutDelta >= 0.0f)
+                state.JumpTimeoutDelta = jumpTimeout;
+                if (state.FallTimeoutDelta >= 0.0f)
                 {
-                    movementData.fallTimeoutDelta -= snap.DeltaTime;
-                }
-                else
-                {
-                    playerCharacter.NetworkAnimationFreeFall.Value = true;
+                    state.FallTimeoutDelta -= TickRate;
                 }
             }
 
-            if (movementData.verticalVelocity < 53.0f)
+            if (state.Velocity.y < 53.0f)
             {
-                movementData.verticalVelocity += Gravity * snap.DeltaTime;
+                state.Velocity.y += gravity * TickRate;
             }
-        }
-
-        private PlayerMovementData GetOrCreateMovementData(ulong clientId)
-        {
-            if (!_playerMovementData.ContainsKey(clientId))
-            {
-                var data = new PlayerMovementData
-                {
-                    jumpTimeoutDelta = JumpTimeout,
-                    fallTimeoutDelta = FallTimeout
-                };
-                _playerMovementData[clientId] = data;
-            }
-            return _playerMovementData[clientId];
-        }
-
-        private T GetOrCreateComponent<T>(ulong clientId, NetworkObject playerNetworkObject, Dictionary<ulong, T> dictionary) where T : Component
-        {
-            if (!dictionary.ContainsKey(clientId) || dictionary[clientId] == null)
-            {
-                if (playerNetworkObject.TryGetComponent<T>(out var component))
-                {
-                    dictionary[clientId] = component;
-                }
-                else
-                {
-                     Debug.LogError($"[MovementManager] Failed to get component {typeof(T).Name} on player object for client {clientId}");
-                }
-            }
-            return dictionary.GetValueOrDefault(clientId);
         }
     }
 }

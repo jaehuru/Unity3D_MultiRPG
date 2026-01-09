@@ -1,24 +1,12 @@
-// Unity
 using UnityEngine;
-using Unity.Netcode;
 using UnityEngine.InputSystem;
-// Project
+using Unity.Netcode;
 using Jae.Common;
 using Jae.Manager;
 
 [RequireComponent(typeof(PlayerCharacter))]
 public class PlayerController : NetworkBehaviour
 {
-    [Header("Movement Settings")]
-    [Tooltip("서버로 전송될 캐릭터 회전 속도 (카메라 회전은 PlayerCameraController에서 처리)")]
-    [SerializeField] private float rotationSpeed = 80f;
-
-    [Header("Auto-Save Settings")]
-    [Tooltip("자동 저장 간격(초)")]
-    [SerializeField] private float autoSaveInterval = 10f;
-    
-    private PlayerCharacter _playerCharacter;
-    
     // --- Public-Facing Input Properties (for other local components like camera) ---
     public Vector2 MoveInput { get; private set; }
     public Vector2 LookInput { get; private set; }
@@ -28,83 +16,43 @@ public class PlayerController : NetworkBehaviour
     private bool _sprintInput;
     private bool _walkInput;
 
-    // --- Server-Side State ---
-    private float _saveTimer = 0f;
-    
-    // --- Cinemachine ---
     [HideInInspector]
     public GameObject CinemachineCameraTarget;
 
     public override void OnNetworkSpawn()
     {
         base.OnNetworkSpawn();
-        
-        if (!IsLocalPlayer && !IsServer)
-        {
-            enabled = false;
-        }
 
         if (!IsLocalPlayer)
         {
+            // PlayerInput 컴포넌트는 Local Player만 사용해야 함
             if (TryGetComponent<PlayerInput>(out var playerInput))
             {
                 playerInput.enabled = false;
             }
-        }
-
-        _playerCharacter = GetComponent<PlayerCharacter>();
-    }
-
-    private void Update()
-    {
-        if (IsServer)
-        {
-            HandleAutoSave();
-        }
-        
-        if (IsLocalPlayer)
-        {
-            HandleMovementInput();
+            // PlayerController 자체도 비활성화
+            enabled = false;
         }
     }
 
-    private void HandleMovementInput()
+    public MovementInput GetInput(int currentTick)
     {
-        var snapshot = new MovementSnapshot
+        var input = new MovementInput
         {
-            MoveInput = this.MoveInput,
+            Tick = currentTick,
+            Move = this.MoveInput,
             LookDelta = this.LookInput,
-            IsJumping = _jumpInput,
-            IsSprinting = _sprintInput,
-            IsWalking = _walkInput,
-            RotationSpeed = rotationSpeed,
-            DeltaTime = Time.deltaTime
+            Jump = _jumpInput,
+            Sprint = _sprintInput,
+            Walk = _walkInput
         };
-        
-        if (_playerCharacter != null)
-        {
-            _playerCharacter.RequestMove_ServerRpc(snapshot);
-        } 
-        
+
+        // 점프 입력은 한 번만 처리되도록 리셋
         _jumpInput = false;
-    }
-
-    private void HandleAutoSave()
-    {
-        _saveTimer += Time.deltaTime;
-        if (_saveTimer >= autoSaveInterval)
-        {
-            _saveTimer = 0f;
-            if (OwnerClientId != NetworkManager.ServerClientId)
-            {
-                RequestSave();
-            }
-        }
-    }
-
-    private void RequestSave()
-    {
-        PlayerSessionManager.Instance?.RequestSavePosition(OwnerClientId, transform.position);
+        // 룩 입력도 매 프레임 누적되지 않도록 리셋
+        LookInput = Vector2.zero;
+        
+        return input;
     }
     
 #region Input System Events (Called by PlayerInput component)
@@ -141,7 +89,8 @@ public class PlayerController : NetworkBehaviour
     public void OnAttack(InputAction.CallbackContext context)
     {
         if (!IsLocalPlayer || !context.performed) return;
-        RequestAttackServerRpc();
+        // TODO: 공격 로직도 틱 기반으로 재설계 필요
+        // RequestAttackServerRpc();
     }
     
     public void OnToggleQuitMenu(InputAction.CallbackContext context)
@@ -150,11 +99,12 @@ public class PlayerController : NetworkBehaviour
         UIManager.Instance?.ToggleQuitMenu();
     }
 #endregion
-
-    [ServerRpc]
-    private void RequestAttackServerRpc(ServerRpcParams rpcParams = default)
-    {
-        if (CombatManager.Instance == null) return;
-        CombatManager.Instance.PlayerAttackRequestServerRpc(rpcParams.Receive.SenderClientId);
-    }
+    
+    // TODO: 공격 RPC도 새로운 시스템에 맞게 수정 필요
+    // [ServerRpc]
+    // private void RequestAttackServerRpc(ServerRpcParams rpcParams = default)
+    // {
+    //     if (CombatManager.Instance == null) return;
+    //     CombatManager.Instance.PlayerAttackRequestServerRpc(rpcParams.Receive.SenderClientId);
+    // }
 }
