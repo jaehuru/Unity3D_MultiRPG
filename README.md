@@ -22,30 +22,6 @@
 - 플레이어 위치, 스탯, 인벤토리, HP 등 **상태 동기화 구조**
 - 로그인 → 인증 토큰 발급 → 게임 서버 접속 → 게임 플레이 → DB 저장 구조의 온라인 RPG의 흐름을 모사한 구조
 
-## Implementation Overview
-
-### Client (Unity Client)
-- 동적 플레이어 추적 카메라
-- 클릭 이동 + NavMesh 기반 제어
-- **UI / 입력 처리 / 세션 관리**
-  - 로그인 → 토큰 저장 → 게임 서버 접속  
-  - 서버에서 받은 상태를 화면에 반영
-
----
-
-### Game Server (Dedicated Server, Unity Netcode)
-> *실시간 멀티플레이 로직을 담당하는 핵심 서버*
-- 토큰을 검증해 접속을 관리
-- 서버 권위 구조
-  - 플레이어 상태를 동기화·관리
-  - 필요 시 정보를 저장 
-
----
-
-### Account Server (Mock Account Server, Node.js + SQLite)
-> *계정 관리 및 인증, 테스트용 Mock API 제공*
-- **Platform**     : Node.js 24.11.1(LTS)
-- **Database**     : SQLite
 
 
 
